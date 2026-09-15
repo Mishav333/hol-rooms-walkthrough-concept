@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   ┌──────────────────────────────────────────────────────────────────┐
-  │ House of Longevity — Rooms Walkthrough                           │
+  │ House of Longevity, Rooms Walkthrough                           │
   │ Representative room build: THE WEIGHT ROOM                       │
   │ Round 3: aspect-safe photo planes, one continuous eased dolly,    │
   │ shared-clock text choreography, and a warm-light opening arc.     │
@@ -40,7 +40,7 @@
      The locked corridor-between photo is the FLOOR of darkness: no frame in the
      journey may be emptier/darker than it. This sits behind the canvas and the
      static room layers at all times, so travel and dead zones never go to pure
-     black void — matches the corridor lock's "always legible travertine" rule. */
+     black void, matches the corridor lock's "always legible travertine" rule. */
   body{
     background:
       linear-gradient(rgba(5,4,3,0.12), rgba(5,4,3,0.12)),
@@ -53,7 +53,7 @@
   .lenis.lenis-stopped{ overflow:hidden; }
 
   /* ── static / fallback layer (always present, real DOM, crawlable) ──
-     z-index:3 — DELIBERATELY ABOVE the cinematic canvas (z-index:1 below).
+     z-index:3, DELIBERATELY ABOVE the cinematic canvas (z-index:1 below).
      Round-2 defect 5 root cause: canvas used to sit at z-index:2 ABOVE the
      text (z-index:1), so title/copy were physically painted behind the
      opaque WebGL layer and could never be seen while the cinematic layer
@@ -118,17 +118,25 @@
     opacity:1;
     will-change:opacity;
     background:
-      linear-gradient(rgba(255,226,179,0.08), rgba(12,8,4,0.08)),
+      radial-gradient(ellipse 54% 72% at 50% 48%, rgba(255,239,205,0.58) 0%, rgba(244,205,148,0.28) 36%, rgba(244,205,148,0) 78%),
+      linear-gradient(rgba(244,207,150,0.30), rgba(52,30,12,0.08)),
       url('img/corridor-approach.webp') center/cover no-repeat;
   }
 
-  #intro{ background:linear-gradient(rgba(255,226,179,0.06),rgba(5,4,3,0.12)), url('img/corridor-approach.webp') center/cover no-repeat; align-items:center; text-align:center; }
+  #intro{
+    background:
+      radial-gradient(ellipse 54% 72% at 50% 48%, rgba(255,239,205,0.58) 0%, rgba(244,205,148,0.28) 36%, rgba(244,205,148,0) 78%),
+      linear-gradient(rgba(244,207,150,0.30), rgba(52,30,12,0.08)),
+      url('img/corridor-approach.webp') center/cover no-repeat;
+    align-items:center;
+    text-align:center;
+  }
   #intro .room-title{ max-width:none; }
   #intro::before{ background:radial-gradient(ellipse at center, rgba(255,226,179,0.02), rgba(5,4,3,0.22)); }
 
   #corridor-approach-weight{ background-image:url('img/corridor-approach.webp'); }
   /* corridor-approach carries only small corner labels, not a text block that
-     needs heavy legibility darkening — a lighter ::before here keeps this
+     needs heavy legibility darkening, a lighter ::before here keeps this
      travel stretch no darker than the locked corridor-between floor. */
   #corridor-approach-weight::before{
     background:
@@ -142,7 +150,7 @@
   #room-weight .room-eyebrow{ color:#f3e6c9; }
 
   /* defect 6: after Weight the preview must resolve cleanly, not end in black
-     void — carry the corridor-between photo through as the resolve card so
+     void, carry the corridor-between photo through as the resolve card so
      there is legible content (not pure black) at the end of the journey too. */
   #next-rooms{
     background:linear-gradient(rgba(5,4,3,0.45),rgba(5,4,3,0.45)), url('img/corridor-between.webp') center/cover no-repeat;
@@ -190,7 +198,7 @@
   .way-btn[aria-pressed="true"]{ background:var(--gold); color:#050403; border-color:var(--gold); }
 
   /* ── cinematic canvas layer (only mounted when capable) ──
-     z-index:1 — BELOW .room (z-index:3), so in-scene text always paints on
+     z-index:1, BELOW .room (z-index:3), so in-scene text always paints on
      top of the canvas. The canvas only needs to sit above the plain page
      background (no explicit z-index) and below every DOM room. */
   #webgl{
@@ -202,14 +210,15 @@
   }
   body.cine-active #webgl{ opacity:1; }
   /* when the cinematic layer is live, hide the static bg images (canvas replaces them)
-     but keep every DOM text node exactly as-is — this is the DOM-mirror invariant */
+     but keep every DOM text node exactly as-is, this is the DOM-mirror invariant */
   body.cine-active .room{ background-image:none !important; }
   body.cine-active .room::before{ background:linear-gradient(to top, rgba(5,4,3,0.78) 0%, rgba(5,4,3,0.05) 45%, rgba(5,4,3,0.02) 60%, rgba(5,4,3,0.45) 100%); }
 
   #preloader{
     position:fixed; inset:0; z-index:9000;
     background:
-      linear-gradient(rgba(255,226,179,0.08), rgba(5,4,3,0.12)),
+      radial-gradient(ellipse 54% 72% at 50% 48%, rgba(255,239,205,0.58) 0%, rgba(244,205,148,0.28) 36%, rgba(244,205,148,0) 78%),
+      linear-gradient(rgba(244,207,150,0.30), rgba(52,30,12,0.08)),
       url('img/corridor-approach.webp') center/cover no-repeat;
     color:var(--ink);
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1rem;
@@ -310,7 +319,7 @@ import {
 } from './motion-core.js';
 
 // ─────────────────────────────────────────────────────────────────────────
-// House of Longevity — Rooms Walkthrough (representative room: Weight)
+// House of Longevity, Rooms Walkthrough (representative room: Weight)
 //
 // ARCHITECTURE NOTE: this file implements the shared corridor engine
 // (capability gate, scene-record camera/text timeline, wayfinding,
@@ -362,7 +371,7 @@ const openingLight = document.getElementById('opening-light');
 
 // QA override only: ?forcecine=1 bypasses the capability gate so My Girl can
 // review the cinematic layer on a device that would otherwise default to the
-// static fallback (e.g. a touchscreen laptop). Never used for real visitors —
+// static fallback (e.g. a touchscreen laptop). Never used for real visitors,
 // the gate above still applies untouched for everyone without the param.
 const forceCine = new URLSearchParams(location.search).get('forcecine') === '1';
 
@@ -507,7 +516,7 @@ async function bootCinematic() {
     loader.load(u, (tex) => { tex.colorSpace = THREE.SRGBColorSpace; resolve(tex); }, undefined, () => resolve(null));
   })));
 
-  // DOM room refs — needed early by both the camera-path sync (below) and
+  // DOM room refs, needed early by both the camera-path sync (below) and
   // the text choreography (later); single source of truth for both.
   const roomEls = {
     intro: document.getElementById('intro'),
@@ -522,7 +531,7 @@ async function bootCinematic() {
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setClearColor(0x000000, 0); // transparent clear — defect 4: the CSS
+  renderer.setClearColor(0x000000, 0); // transparent clear, defect 4: the CSS
   // corridor-between backdrop (body background) shows through everywhere the
   // 3D scene doesn't paint geometry, so dead travel zones can never go emptier
   // than the locked corridor-between photo, which sits behind the canvas.
@@ -531,7 +540,7 @@ async function bootCinematic() {
   renderer.toneMappingExposure = 1.0;
 
   const scene = new THREE.Scene();
-  // no scene.background — transparent, see renderer alpha note above.
+  // no scene.background, transparent, see renderer alpha note above.
   scene.fog = new THREE.FogExp2(0x0a0806, 0.055);
 
   const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.05, 60);
@@ -579,7 +588,7 @@ async function bootCinematic() {
 
   const planeGroup = new THREE.Group();
   const roomZ = { intro: 4, 'approach-weight': -2, weight: -10, next: -18 };
-  // fixed, level camera height — no vertical component anywhere in the path
+  // fixed, level camera height, no vertical component anywhere in the path
   // (this is the fix-by-construction for the round-2 "sinks into the ground" defect).
   const CAM_Y = 1.62;
   const CAMERA_START_Z = 8;
@@ -600,7 +609,7 @@ async function bootCinematic() {
     planes[r.id] = mesh;
 
     // light spill onto the corridor floor beneath the plane, tinted to the room's
-    // door temperature where one exists (approach bays) else its mood accent —
+    // door temperature where one exists (approach bays) else its mood accent,
     // this IS the threshold glow (no separate ring marker exists, defect 1).
     const spill = new THREE.PointLight(new THREE.Color(r.doorTemp || r.mood.accent || r.mood.bg), 2.6, 9, 2.0);
     spill.position.set(0, CAM_Y - 1.0, (roomZ[r.id] ?? 0) + 1.4);
@@ -661,7 +670,7 @@ async function bootCinematic() {
     scrollTrigger: { trigger: '.scroll-container', start: 'top top', end: 'bottom bottom', scrub: 0.4 },
   }).to(state, { t: 1, ease: 'none' }, 0);
 
-  // room text choreography — bound to the SAME timeline as the camera, not raw
+  // room text choreography, bound to the SAME timeline as the camera, not raw
   // scroll distance, so exits complete before the next room's text enters
   // (this is the fix-by-construction for the round-1 stranded-copy defect).
   Object.entries(roomEls).forEach(([id, el]) => {
@@ -767,7 +776,7 @@ async function bootCinematic() {
   tick();
   setupWayfinding(() => state.t);
 
-  // DEBUG HOOK (temporary, for local QA only — not part of the deployed brief)
+  // DEBUG HOOK (temporary, for local QA only, not part of the deployed brief)
   window.__hol_debug = () => ({
     stateT: state.t,
     cameraPos: camera.position.toArray(),

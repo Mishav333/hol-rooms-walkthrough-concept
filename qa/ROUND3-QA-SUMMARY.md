@@ -1,7 +1,7 @@
 # Round 3 Technical QA Summary
 
 Date: 2026-09-15
-Build under test: local working tree after commit 60bb28a
+Build under test: Round 3 opening-light revision after commit 0546df0
 Viewport: 1440 by 900
 Cinematic override: enabled for QA only
 
@@ -31,7 +31,7 @@ Text is no longer animated by separate ScrollTrigger timelines. Intro, Weight, a
 
 Dense-frame image analysis found no single-frame discontinuity. Maximum consecutive-frame RMSE step change:
 
-- Opening to dark: 7.54
+- Opening to dark: 5.38
 - Dark to Weight: 2.47
 - Weight to resolve: 1.78
 
@@ -39,9 +39,19 @@ Gate threshold: less than 22.
 
 ## Defect 10, opening in light
 
-The preloader and opening state now use corridor-approach.webp with a restrained warm lift. The opening fixed layer starts at opacity 1, holds through t 0.08, and eases to 0 by t 0.56. The locked corridor-between image is then exposed before Weight begins its bright arrival.
+My Girl's first independent 78-frame gate cleared defects 7, 8, and 9 but failed the opening treatment. Her evidence measured mean opening luminance 28.85 and only a narrow door-light strip, confirming that the restrained lift still read as a dark corridor.
 
-Measured opening-frame luminance: 29.94. Corridor-approach derivative reference: 20.05. Darkest captured travel frame: 12.73, above 50% of the corridor-between reference floor of 18.59.
+The revision keeps the locked corridor-approach photograph intact underneath but adds an opening-specific broad warm illumination field and stronger ambient lift. The same treatment is present in the preloader, cinematic opening layer, and static fallback. The opening layer starts at opacity 1, holds through t 0.08, and eases to 0 by t 0.56. The treatment disappears before the locked corridor-between nocturne and Weight arrival, so the intended light-to-dark-to-bright arc is preserved.
+
+Revised dense-capture measurements:
+
+- Opening-frame mean luminance: 67.04, previously 29.94
+- Pixels above luminance 100: 12.08%, previously 2.37%
+- Exposure relative to locked approach reference: 3.34 times
+- Exposure relative to dark-travel frame: 5.24 times
+- Dark-travel mean luminance remains 12.79
+
+The regression gate now requires all three conditions: opening mean luminance at least 60, at least 10% of pixels above luminance 100, and opening exposure at least 1.55 times the locked approach reference. The previously rejected frames fail all three gates; the revised frames pass all three.
 
 ## Defect 7, punctuation
 
@@ -51,6 +61,6 @@ The resolve card contains no em or en dashes. The visible page title, counter, a
 
 `node --test qa/round3-motion.test.mjs`: 5 passed, 0 failed.
 
-`python3 qa/analyze_round3_frames.py`: PASS for 24 frames per transition, opening-light register, corridor luminance floor, and no single-frame discontinuity.
+`python3 qa/analyze_round3_frames.py`: PASS for 24 frames per transition, materially light opening, broad opening-light coverage, opening-to-reference exposure ratio, corridor luminance floor, and no single-frame discontinuity.
 
-Status: technical candidate passed My Man's round-3 regression checks. My Girl's independent dense-scrub visual judgment is still required before the representative room can be called PASS.
+Status: revised technical candidate passed My Man's round-3 regression checks after the independent opening-light FAIL. My Girl's fresh independent dense-scrub visual judgment is still required before the representative room can be called PASS.
