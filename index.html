@@ -3,13 +3,11 @@
   ┌──────────────────────────────────────────────────────────────────┐
   │ House of Longevity — Rooms Walkthrough                           │
   │ Representative room build: THE WEIGHT ROOM                       │
-  │ Round 2: composition-layer fixes per My Girl's QA-REPORT          │
-  │ (ring removed, full-bleed at dwell, forward-dolly only, no        │
-  │ frame emptier than the locked corridor-between floor, in-scene    │
-  │ text choreography, clean end-state). Engine layer unchanged —     │
-  │ passed round 1. Not final creative sign-off — QA gate is          │
-  │ My Girl's. Rooms Skin / Recovery / Desire are locked content,     │
-  │ NOT YET BUILT in this pass (see BUILD-STATUS.md).                 │
+  │ Round 3: aspect-safe photo planes, one continuous eased dolly,    │
+  │ shared-clock text choreography, and a warm-light opening arc.     │
+  │ Existing engine and locked assets preserved. Not final creative   │
+  │ sign-off. My Girl owns the dense-scrub QA gate. Rooms Skin,       │
+  │ Recovery, and Desire are locked content, NOT YET BUILT.           │
   └──────────────────────────────────────────────────────────────────┘
 -->
 <html lang="en">
@@ -17,8 +15,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<title>House of Longevity — The Rooms</title>
+<title>House of Longevity | The Rooms</title>
 <meta name="description" content="One house. Many rooms. A walkthrough of the House of Longevity.">
+<link rel="icon" href="data:,">
 
 <link rel="preload" as="image" href="img/weight.webp" fetchpriority="high">
 
@@ -108,9 +107,24 @@
   }
   .room-meta.right{ left:auto; right:clamp(1.5rem,5vw,4rem); }
 
-  #intro{ background:linear-gradient(rgba(5,4,3,0.45),rgba(5,4,3,0.45)), url('img/corridor-between.webp') center/cover no-repeat; align-items:center; text-align:center; }
+  /* Round 3 opening arc: the first impression is the warm corridor approach.
+     It fades on the same journey clock to reveal the locked corridor-between
+     nocturne, before the bright Weight image arrives. */
+  #opening-light{
+    position:fixed;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    opacity:1;
+    will-change:opacity;
+    background:
+      linear-gradient(rgba(255,226,179,0.08), rgba(12,8,4,0.08)),
+      url('img/corridor-approach.webp') center/cover no-repeat;
+  }
+
+  #intro{ background:linear-gradient(rgba(255,226,179,0.06),rgba(5,4,3,0.12)), url('img/corridor-approach.webp') center/cover no-repeat; align-items:center; text-align:center; }
   #intro .room-title{ max-width:none; }
-  #intro::before{ background:radial-gradient(ellipse at center, rgba(20,15,10,0.15), rgba(5,4,3,0.5)); }
+  #intro::before{ background:radial-gradient(ellipse at center, rgba(255,226,179,0.02), rgba(5,4,3,0.22)); }
 
   #corridor-approach-weight{ background-image:url('img/corridor-approach.webp'); }
   /* corridor-approach carries only small corner labels, not a text block that
@@ -194,7 +208,10 @@
 
   #preloader{
     position:fixed; inset:0; z-index:9000;
-    background:#050403; color:var(--ink);
+    background:
+      linear-gradient(rgba(255,226,179,0.08), rgba(5,4,3,0.12)),
+      url('img/corridor-approach.webp') center/cover no-repeat;
+    color:var(--ink);
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1rem;
     transition:opacity 0.6s ease, visibility 0.6s;
   }
@@ -216,6 +233,8 @@
 </head>
 <body>
 
+<div id="opening-light" aria-hidden="true"></div>
+
 <div id="preloader" aria-hidden="true">
   <div class="preloader-word">Opening the House</div>
   <div class="preloader-bar"><div class="preloader-fill"></div></div>
@@ -224,13 +243,13 @@
 <canvas id="webgl" aria-hidden="true"></canvas>
 
 <div id="wayfinding" role="navigation" aria-label="Walkthrough progress">
-  <div id="room-counter">01 / 04 — Weight</div>
+  <div id="room-counter">01 / 04 · Weight</div>
   <div id="progress-track" aria-hidden="true"><div id="progress-fill"></div></div>
   <button class="way-btn" id="btn-autowalk" aria-pressed="false">Auto-walk</button>
   <button class="way-btn" id="btn-skip">Skip</button>
 </div>
 
-<div class="dev-badge">My Man — representative-room build, Weight only, round 2. Skin / Recovery / Desire not yet built.</div>
+<div class="dev-badge">My Man, representative-room build, Weight only, round 3. Skin, Recovery, and Desire not yet built.</div>
 
 <main class="scroll-container">
 
@@ -256,8 +275,8 @@
   <section class="room" id="next-rooms" data-room="next">
     <div>
       <span class="room-eyebrow">SKIN &middot; RECOVERY &middot; DESIRE</span>
-      <p class="room-copy">The rest of the House — the Cosmetic Quarter, the Recovery Wing, and the Private Room that never opens — build next, once this room is approved.</p>
-      <span class="wip-badge">Not yet built — representative-room proof only</span>
+      <p class="room-copy">The rest of the House: the Cosmetic Quarter, the Recovery Wing, and the Private Room that never opens. They build next, once this room is approved.</p>
+      <span class="wip-badge">Not yet built. Representative-room proof only.</span>
     </div>
   </section>
 
@@ -282,6 +301,14 @@
 </script>
 
 <script type="module">
+import {
+  coverFit,
+  dollyZAt,
+  openingLightOpacity,
+  weightArrivalOpacity,
+  textEnvelope,
+} from './motion-core.js';
+
 // ─────────────────────────────────────────────────────────────────────────
 // House of Longevity — Rooms Walkthrough (representative room: Weight)
 //
@@ -331,6 +358,7 @@ function capabilityCheck() {
 
 const cap = capabilityCheck();
 const preloader = document.getElementById('preloader');
+const openingLight = document.getElementById('opening-light');
 
 // QA override only: ?forcecine=1 bypasses the capability gate so My Girl can
 // review the cinematic layer on a device that would otherwise default to the
@@ -514,18 +542,12 @@ async function bootCinematic() {
   SCENE_RECORDS.filter(r => r.photo).forEach((r, i) => { texByUrl[r.photo] = textures[i]; });
 
   // ── photo planes ──
-  // Round-2 rebuild of the composition layer (engine underneath unchanged):
-  //  - defect 1: NO ring/marker geometry anywhere. The corridor lock's real
-  //    system is "the glowing door IS the threshold" — the approach photo's
-  //    own bright door plus a tinted point-light spill carries that read.
-  //  - defect 2: planes size to the exact camera-frustum fill at each
-  //    room's dwell distance, so at dwell the photo is genuinely full-bleed
-  //    to the viewport edge (verified pixel-for-pixel below), not a
-  //    permanent vignetted rectangle. Feather only exists during approach
-  //    travel and eases to zero as the room is reached.
-  //  - defect 3: the approach door plane SCALES UP toward the viewer as the
-  //    camera nears it (dolly-grow), and the room plane blooms (scale+alpha
-  //    grow) from that same door position — no vertical motion anywhere.
+  // Round 3 invariant: every photo plane keeps its source aspect ratio for
+  // every rendered frame. Geometry is a unit square, but scale is always
+  // assigned as { width: imageAspect * height, height }. Weight is cover-fit
+  // once for the arrival camera and viewport, then held static while the
+  // camera dollies toward it. This is a real optical push plus crop, never a
+  // per-frame width/height stretch.
   const featherMat = (tex, tintHex) => new THREE.ShaderMaterial({
     uniforms: {
       map: { value: tex },
@@ -560,18 +582,20 @@ async function bootCinematic() {
   // fixed, level camera height — no vertical component anywhere in the path
   // (this is the fix-by-construction for the round-2 "sinks into the ground" defect).
   const CAM_Y = 1.62;
+  const CAMERA_START_Z = 8;
+  const CAMERA_END_Z = -5.25;
   const planes = {};
   SCENE_RECORDS.filter(r => r.photo).forEach((r) => {
     const tex = texByUrl[r.photo];
     if (!tex) return;
     const aspect = (tex.image && tex.image.width && tex.image.height) ? tex.image.width / tex.image.height : 16/9;
-    // base (travel) size: seated in the bay, smaller than full-bleed
-    const travelW = 7, travelH = travelW / aspect;
-    const geo = new THREE.PlaneGeometry(1, 1, 1, 1); // unit plane, scaled per-frame
+    const travelHeight = 7 / aspect;
+    const geo = new THREE.PlaneGeometry(1, 1, 1, 1);
     const mat = featherMat(tex, r.mood.accent || '#ffffff');
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(0, CAM_Y, roomZ[r.id] ?? 0);
-    mesh.userData = { aspect, travelW, travelH };
+    mesh.scale.set(aspect * travelHeight, travelHeight, 1);
+    mesh.userData = { aspect, baseWidth: aspect * travelHeight, baseHeight: travelHeight };
     planeGroup.add(mesh);
     planes[r.id] = mesh;
 
@@ -586,49 +610,23 @@ async function bootCinematic() {
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.10));
 
-  /* ---------- camera path: FORWARD DOLLY ONLY, DOM-synced hold-in-front ----------
-     Single constant Y (CAM_Y) for both the eye and the look-at target — the
-     whole journey is a straight-ahead push down the corridor's Z axis, and Z
-     is monotonically decreasing (pure forward dolly, never vertical).
-     FIX (round-2 QA): the previous CatmullRom path flew straight THROUGH each
-     room plane's Z position and out the other side mid-dwell, putting the
-     plane behind the camera (outside the view frustum) for roughly a third
-     of the room window — the photo vanished from the canvas while the text
-     was still on screen. Camera Z is now held in front of each room's plane
-     for that room's entire actual DOM dwell window (read from real layout,
-     not guessed fractions), creeping closer (full-bleed grow) but never
-     crossing past it until the text has fully exited.
-     ONE THRESHOLD AT MOST visible at a time is still enforced by z-spacing +
-     fog — matches the corridor lock's "distance IS the massive house" rule. */
-  function fracAtElTop(el) {
-    const max = document.documentElement.scrollHeight - window.innerHeight;
-    return max > 0 ? el.offsetTop / max : 0;
+  /* ---------- camera path: ONE CONTINUOUS FORWARD DOLLY ----------
+     Round 3 removes the piecewise linear keyframes entirely. dollyZAt uses a
+     single quintic smootherstep over the full journey, so position, velocity,
+     and acceleration meet continuously and there are no joins to feel. The
+     camera decelerates naturally into a final position in front of Weight,
+     creating the dwell without stopping and restarting between slides. */
+  function configurePlaneScales() {
+    const weight = planes.weight;
+    if (!weight) return;
+    const distance = Math.abs(CAMERA_END_Z - weight.position.z);
+    const { w: frustumWidth, h: frustumHeight } = frustumSizeAtDistance(camera, distance);
+    const fit = coverFit(weight.userData.aspect, frustumWidth, frustumHeight, 1.06);
+    weight.userData.baseWidth = fit.width;
+    weight.userData.baseHeight = fit.height;
+    weight.scale.set(fit.width, fit.height, 1);
   }
-  function fracAtElBottom(el) {
-    const max = document.documentElement.scrollHeight - window.innerHeight;
-    return max > 0 ? (el.offsetTop + el.offsetHeight) / max : 0;
-  }
-  const tApproachStart = fracAtElTop(roomEls['approach-weight']);
-  const tWeightEnter = Math.max(tApproachStart + 0.02, fracAtElTop(roomEls.weight) - 0.03);
-  const tWeightExit = Math.min(0.98, fracAtElBottom(roomEls.weight) - 0.04);
-
-  const CAM_KEYFRAMES = [
-    { t: 0, z: 8 },
-    { t: tApproachStart, z: 2 },
-    { t: tWeightEnter, z: roomZ['weight'] + 2.6 },
-    { t: tWeightExit, z: roomZ['weight'] + 0.55 },
-    { t: 1, z: roomZ['next'] },
-  ];
-  function zAtT(tt) {
-    for (let i = 0; i < CAM_KEYFRAMES.length - 1; i++) {
-      const a = CAM_KEYFRAMES[i], b = CAM_KEYFRAMES[i + 1];
-      if (tt >= a.t && tt <= b.t) {
-        const local = b.t > a.t ? (tt - a.t) / (b.t - a.t) : 0;
-        return THREE.MathUtils.lerp(a.z, b.z, local);
-      }
-    }
-    return CAM_KEYFRAMES[CAM_KEYFRAMES.length - 1].z;
-  }
+  configurePlaneScales();
 
   const hdrTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, { type: THREE.HalfFloatType });
 
@@ -667,7 +665,6 @@ async function bootCinematic() {
   // scroll distance, so exits complete before the next room's text enters
   // (this is the fix-by-construction for the round-1 stranded-copy defect).
   Object.entries(roomEls).forEach(([id, el]) => {
-    const textNode = el.querySelector('.room-title, .room-copy')?.parentElement || el;
     ScrollTrigger.create({
       trigger: el,
       start: 'top 70%',
@@ -679,24 +676,24 @@ async function bootCinematic() {
     });
   });
 
-  // ── text enter/hold/exit choreography, IN-SCENE (defect 5) ──
-  // Each room's own title/eyebrow/copy fade + rise in as the section enters
-  // the window, hold at full opacity through the dwell, then fade + settle
-  // out before the next room's window opens (bound to that room's own
-  // ScrollTrigger, same trigger element as the measurement hooks above —
-  // exits always complete before the next enters because windows don't
-  // overlap). This makes the copy an animated in-scene element rather than
-  // a plain static DOM block sitting behind the header label.
-  Object.entries(roomEls).forEach(([id, el]) => {
-    const textEls = el.querySelectorAll('.room-eyebrow, .room-title, .room-copy');
-    if (!textEls.length) return;
-    gsap.set(textEls, { opacity: 0, y: 22 });
-    gsap.timeline({
-      scrollTrigger: { trigger: el, start: 'top 85%', end: 'top 30%', scrub: 0.5 },
-    }).to(textEls, { opacity: 1, y: 0, stagger: 0.05, ease: 'power2.out' });
-    gsap.timeline({
-      scrollTrigger: { trigger: el, start: 'bottom 55%', end: 'bottom 5%', scrub: 0.5 },
-    }).to(textEls, { opacity: 0, y: -16, stagger: 0.03, ease: 'power1.in' });
+  // ── text choreography on the SAME continuous journey clock ──
+  // Each envelope uses quintic eased ramps. Weight enters only after the
+  // dolly has begun decelerating, holds through arrival, then makes room for
+  // the resolve card without a separate start-stop animation timeline.
+  const TEXT_TRACKS = {
+    intro: { enterStart: 0.00, enterEnd: 0.00, exitStart: 0.18, exitEnd: 0.40 },
+    weight: { enterStart: 0.62, enterEnd: 0.82, exitStart: 0.90, exitEnd: 1.00 },
+    next: { enterStart: 0.90, enterEnd: 1.00, exitStart: 2.00, exitEnd: 2.00 },
+  };
+  const textGroups = {};
+  Object.entries(TEXT_TRACKS).forEach(([id, track]) => {
+    const textEls = Array.from(roomEls[id].querySelectorAll('.room-eyebrow, .room-title, .room-copy'));
+    textGroups[id] = { track, textEls };
+    textEls.forEach((el) => {
+      el.style.opacity = id === 'intro' ? '1' : '0';
+      el.style.transform = id === 'intro' ? 'translate3d(0,0,0)' : 'translate3d(0,18px,0)';
+      el.style.willChange = 'opacity, transform';
+    });
   });
 
 
@@ -705,6 +702,7 @@ async function bootCinematic() {
     camera.aspect = w / h; camera.updateProjectionMatrix();
     renderer.setSize(w, h); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     composer.setSize(w, h);
+    configurePlaneScales();
   }
   window.addEventListener('resize', onResize);
 
@@ -717,51 +715,42 @@ async function bootCinematic() {
 
   const tmpAim = new THREE.Vector3();
 
-  // Per-room dolly-grow + full-bleed-at-dwell sizing (defects 2 & 3).
-  // For each photo plane: as camera Z-distance to the plane shrinks, the
-  // plane SCALES UP (grows toward the viewer — the forward-dolly read) and
-  // its feather value eases toward 0 (full-bleed, no vignette rectangle) as
-  // the plane fills the frame. Plane world size is computed to fill the
-  // camera frustum AT THE CURRENT DISTANCE, which is the standard
-  // perspective-projection property that makes a frustum-fitted plane fill
-  // the screen at any distance (including very close to the lens) — so this
-  // stays correct through the camera's straight pass-through of each room.
-  function updatePlane(mesh, cam) {
-    if (!mesh) return;
-    const dz = Math.max(0.35, Math.abs(cam.position.z - mesh.position.z));
-    const { w: frustW, h: frustH } = frustumSizeAtDistance(cam, dz);
-    const { aspect, travelW, travelH } = mesh.userData;
-    // travel proximity: 0 far away (small, seated in bay) -> 1 very close (full-bleed)
-    const proximity = THREE.MathUtils.clamp(1 - (dz - 1.2) / 7, 0, 1); // 0 at dz>=8.2, 1 at dz<=1.2
-    const eased = proximity * proximity * (3 - 2 * proximity); // smoothstep
-    // interpolate plane size from "seated travel size" to "overfills the frustum" (full-bleed + margin)
-    const bleedW = frustW * 1.18, bleedH = frustH * 1.18;
-    const w = THREE.MathUtils.lerp(travelW, bleedW, eased);
-    const h = THREE.MathUtils.lerp(travelH, bleedH, eased);
-    mesh.scale.set(w, h, 1);
-    mesh.material.uniforms.feather.value = THREE.MathUtils.lerp(0.22, 0.0, eased);
+  function applyTextState(tt) {
+    Object.values(textGroups).forEach(({ track, textEls }) => {
+      const opacity = textEnvelope(tt, track);
+      const y = (1 - opacity) * 18;
+      textEls.forEach((el) => {
+        el.style.opacity = opacity.toFixed(4);
+        el.style.transform = `translate3d(0,${y.toFixed(2)}px,0)`;
+      });
+    });
   }
 
   function tick() {
     if (!running) return;
     const tt = THREE.MathUtils.clamp(state.t, 0, 1);
-    const z = zAtT(tt);
+    const z = dollyZAt(tt, CAMERA_START_Z, CAMERA_END_Z);
     camera.position.set(0, CAM_Y, z);
     camera.up.set(0, 1, 0);
-    tmpAim.set(0, CAM_Y, z - 6); // always look straight down -Z — pure forward dolly
+    tmpAim.set(0, CAM_Y, z - 6);
     camera.lookAt(tmpAim);
 
-    Object.values(planes).forEach((p) => updatePlane(p, camera));
+    // Warm approach opens the film, then dissolves to the corridor nocturne.
+    openingLight.style.opacity = openingLightOpacity(tt).toFixed(4);
 
-    // subtle velocity-driven "breath" on the weight plane at dwell, layered
-    // on top of (not replacing) the dolly-grow scale above
-    const wp = planes['weight'];
+    const approach = planes['approach-weight'];
+    if (approach) approach.material.uniforms.uAlpha.value = 0;
+
+    const wp = planes.weight;
     if (wp) {
-      const dz = Math.abs(camera.position.z - wp.position.z);
-      const closeness = THREE.MathUtils.clamp(1 - dz / 10, 0, 1);
-      const breath = 1 + closeness * 0.012 * Math.sin(clock.elapsedTime * 0.6);
-      wp.scale.x *= breath; wp.scale.y *= breath;
+      const arrival = weightArrivalOpacity(tt);
+      const breath = 1 + arrival * 0.003 * Math.sin(clock.elapsedTime * 0.55);
+      wp.scale.set(wp.userData.baseWidth * breath, wp.userData.baseHeight * breath, 1);
+      wp.material.uniforms.uAlpha.value = arrival;
+      wp.material.uniforms.feather.value = 0.22 * (1 - arrival);
     }
+
+    applyTextState(tt);
     composer.render();
     rafId = requestAnimationFrame(tick);
   }
@@ -786,6 +775,12 @@ async function bootCinematic() {
     weightPlaneOpacity: planes['weight'] ? planes['weight'].material.uniforms.map.value : null,
     weightPlaneFeather: planes['weight'] ? planes['weight'].material.uniforms.feather.value : null,
     weightPlaneScale: planes['weight'] ? planes['weight'].scale.toArray() : null,
+    weightPlaneAspect: planes['weight'] ? planes['weight'].userData.aspect : null,
+    weightPlaneAlpha: planes['weight'] ? planes['weight'].material.uniforms.uAlpha.value : null,
+    openingLightOpacity: openingLight ? Number(getComputedStyle(openingLight).opacity) : null,
+    introTextOpacity: Number(getComputedStyle(roomEls.intro.querySelector('.room-title')).opacity),
+    weightTextOpacity: Number(getComputedStyle(roomEls.weight.querySelector('.room-title')).opacity),
+    nextTextOpacity: Number(getComputedStyle(roomEls.next.querySelector('.room-copy')).opacity),
     weightTexLoaded: !!texByUrl['img/weight.webp'],
     weightTexImage: texByUrl['img/weight.webp'] && texByUrl['img/weight.webp'].image ? [texByUrl['img/weight.webp'].image.width, texByUrl['img/weight.webp'].image.height] : null,
     fogDensity: scene.fog.density,
