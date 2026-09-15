@@ -1,16 +1,12 @@
 <!doctype html>
 <!--
   ┌──────────────────────────────────────────────────────────────────┐
-  │ HOW TO RUN — DO NOT double-click this file.                      │
-  │ Serve over HTTP:                                                 │
-  │   cd hol-concept && python -m http.server 8766                   │
-  │   → open http://localhost:8766/hol-rooms-walkthrough.html        │
-  │                                                                  │
-  │ TECHNICAL PROOF-OF-CONCEPT ONLY. Not brand-approved visual        │
-  │ direction. Placeholder palette/typography. Copy is the real,      │
-  │ public "House of Longevity" offer-page copy (verbatim), used to   │
-  │ prove the mechanic reads correctly against real content.          │
-  │ Built by My Man on the MIT-licensed awwwards-3d skill foundation. │
+  │ House of Longevity — Rooms Walkthrough                           │
+  │ Representative room build: THE WEIGHT ROOM                       │
+  │ Built by My Man, against locked visual targets + brief from      │
+  │ My Girl. Not final creative sign-off — QA gate is My Girl's.     │
+  │ Rooms Skin / Recovery / Desire are locked content, NOT YET BUILT  │
+  │ in this pass (see BUILD-STATUS.md, "prove one room first").       │
   └──────────────────────────────────────────────────────────────────┘
 -->
 <html lang="en">
@@ -18,101 +14,220 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<title>House of Longevity — The Rooms (technical concept)</title>
+<title>House of Longevity — The Rooms</title>
+<meta name="description" content="One house. Many rooms. A walkthrough of the House of Longevity.">
+
+<link rel="preload" as="image" href="img/weight.webp" fetchpriority="high">
 
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body {
-    overscroll-behavior: none;
-    scroll-behavior: auto;
-    background: #0a0907;
-    color: #ede2c8;
+  :root{
+    --ink:#ede2c8;
+    --bg:#07060570;
+    --gold:#c2a27e;
+    --weight-bg:#a18e76;
+    --weight-deep:#6b5a43;
+    --weight-accent:#d6c7b7;
   }
-  body {
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{
+    background:#050403;
+    color:var(--ink);
+    overscroll-behavior:none;
+  }
+  body{
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
+    -webkit-font-smoothing:antialiased;
+  }
+  html.lenis, html.lenis body{ height:auto; }
+  .lenis.lenis-smooth{ scroll-behavior:auto !important; }
+  .lenis.lenis-stopped{ overflow:hidden; }
+
+  /* ── static / fallback layer (always present, real DOM, crawlable) ── */
+  .room{
+    position:relative;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-end;
+    padding:clamp(1.5rem,5vw,4rem);
+    background-size:cover;
+    background-position:center;
+    isolation:isolate;
+  }
+  .room::before{
+    /* legibility + feathered vignette baked into the static layer too */
+    content:"";
+    position:absolute; inset:0;
+    background:
+      linear-gradient(to top, rgba(5,4,3,0.92) 0%, rgba(5,4,3,0.35) 38%, rgba(5,4,3,0.08) 62%, rgba(5,4,3,0.35) 100%),
+      radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(5,4,3,0.55) 100%);
+    z-index:0;
+  }
+  .room > *{ position:relative; z-index:1; }
+
+  .room-eyebrow{
+    font-size:0.72rem; letter-spacing:0.2em; text-transform:uppercase;
+    opacity:0.65; margin-bottom:0.7rem; color:var(--gold);
+  }
+  .room-title{
+    font-weight:600;
+    font-size:clamp(2rem,6vw,4.5rem);
+    line-height:1.0;
+    letter-spacing:-0.03em;
+    max-width:16ch;
+    margin-bottom:1rem;
+  }
+  .room-copy{
+    font-size:clamp(0.95rem,1.6vw,1.15rem);
+    line-height:1.55;
+    max-width:36ch;
+    opacity:0.88;
+    font-weight:300;
+  }
+  .room-meta{
+    position:absolute; top:clamp(1.5rem,5vw,4rem); left:clamp(1.5rem,5vw,4rem);
+    font-size:0.68rem; letter-spacing:0.14em; text-transform:uppercase;
+    opacity:0.55; z-index:1;
+  }
+  .room-meta.right{ left:auto; right:clamp(1.5rem,5vw,4rem); }
+
+  #intro{ background:#050403; align-items:center; text-align:center; }
+  #intro .room-title{ max-width:none; }
+  #intro::before{ background:radial-gradient(ellipse at center, rgba(20,15,10,0.2), rgba(5,4,3,0.9)); }
+
+  #corridor-approach-weight{ background-image:url('img/corridor-approach.webp'); }
+  #room-weight{ background-image:url('img/weight.webp'); }
+  #room-weight .room-eyebrow{ color:#f3e6c9; }
+
+  #next-rooms{
+    background:#050403;
+    min-height:60vh;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+  }
+  #next-rooms .room-copy{ max-width:44ch; margin:0 auto; opacity:0.6; }
+  .wip-badge{
+    display:inline-block;
+    font-size:0.65rem; letter-spacing:0.16em; text-transform:uppercase;
+    border:1px solid rgba(237,226,200,0.3);
+    padding:0.35rem 0.8rem; border-radius:999px;
+    opacity:0.7; margin-top:1.2rem;
   }
 
-  html.lenis, html.lenis body { height: auto; }
-  .lenis.lenis-smooth { scroll-behavior: auto !important; }
-  .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
-  .lenis.lenis-stopped { overflow: hidden; }
+  /* ── wayfinding (real DOM controls, work with and without the 3D layer) ── */
+  #wayfinding{
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    padding:1rem clamp(1rem,3vw,2rem);
+    display:flex; align-items:center; gap:1rem;
+    pointer-events:none;
+  }
+  #wayfinding > *{ pointer-events:auto; }
+  #progress-track{
+    flex:1; height:2px; background:rgba(237,226,200,0.18);
+    position:relative; border-radius:2px; overflow:hidden;
+  }
+  #progress-fill{
+    position:absolute; left:0; top:0; bottom:0; width:0%;
+    background:var(--gold); transition:width 0.08s linear;
+  }
+  #room-counter{
+    font-size:0.7rem; letter-spacing:0.12em; opacity:0.7; white-space:nowrap;
+  }
+  .way-btn{
+    background:transparent; border:1px solid rgba(237,226,200,0.35);
+    color:var(--ink); font-size:0.68rem; letter-spacing:0.1em; text-transform:uppercase;
+    padding:0.4rem 0.85rem; border-radius:999px; cursor:pointer;
+    transition:border-color 0.2s, background 0.2s;
+    white-space:nowrap;
+  }
+  .way-btn:hover{ border-color:rgba(237,226,200,0.8); background:rgba(237,226,200,0.06); }
+  .way-btn[aria-pressed="true"]{ background:var(--gold); color:#050403; border-color:var(--gold); }
 
-  #webgl {
-    position: fixed; inset: 0;
-    width: 100%; height: 100%;
-    pointer-events: none;
-    z-index: 0;
+  /* ── cinematic canvas layer (only mounted when capable) ── */
+  #webgl{
+    position:fixed; inset:0;
+    width:100%; height:100%;
+    pointer-events:none;
+    z-index:2;
+    opacity:0; transition:opacity 0.8s ease;
   }
+  body.cine-active #webgl{ opacity:1; }
+  /* when the cinematic layer is live, hide the static bg images (canvas replaces them)
+     but keep every DOM text node exactly as-is — this is the DOM-mirror invariant */
+  body.cine-active .room{ background-image:none !important; }
+  body.cine-active .room::before{ background:linear-gradient(to top, rgba(5,4,3,0.85) 0%, rgba(5,4,3,0.15) 45%, rgba(5,4,3,0.1) 60%, rgba(5,4,3,0.55) 100%); }
 
-  main { position: relative; z-index: 1; }
-  section {
-    position: relative;
-    height: 100vh;
-    padding: clamp(1.5rem, 5vw, 4rem);
-    display: flex; flex-direction: column; justify-content: flex-end;
+  #preloader{
+    position:fixed; inset:0; z-index:9000;
+    background:#050403; color:var(--ink);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1rem;
+    transition:opacity 0.6s ease, visibility 0.6s;
   }
-  .room-label {
-    font-size: 0.75rem; letter-spacing: 0.18em; text-transform: uppercase;
-    opacity: 0.65; margin-bottom: 0.6rem;
-  }
-  .room-name {
-    font-weight: 600;
-    font-size: clamp(1.8rem, 5.5vw, 4rem);
-    line-height: 1.0;
-    letter-spacing: -0.03em;
-    max-width: 16ch;
-    margin-bottom: 0.9rem;
-  }
-  .room-copy {
-    font-size: clamp(0.95rem, 1.6vw, 1.15rem);
-    line-height: 1.5;
-    max-width: 34ch;
-    opacity: 0.85;
-    font-weight: 300;
-  }
-  section .meta {
-    position: absolute; top: clamp(1.5rem, 5vw, 4rem); left: clamp(1.5rem, 5vw, 4rem);
-    font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
-    opacity: 0.5;
-  }
-  section .meta.right {
-    left: auto; right: clamp(1.5rem, 5vw, 4rem);
-  }
+  #preloader.done{ opacity:0; visibility:hidden; pointer-events:none; }
+  .preloader-word{ font-size:0.72rem; letter-spacing:0.16em; text-transform:uppercase; opacity:0.6; }
+  .preloader-bar{ width:clamp(140px,28vw,240px); height:1px; background:rgba(237,226,200,0.18); }
+  .preloader-fill{ height:100%; width:0%; background:var(--ink); transition:width 0.15s ease; }
 
-  #preloader {
-    position: fixed; inset: 0;
-    background: #0a0907; color: #ede2c8;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    z-index: 9000;
-    transition: opacity 0.6s ease, visibility 0.6s;
-    gap: 1rem;
-  }
-  #preloader.done { opacity: 0; visibility: hidden; }
-  .preloader-counter {
-    font: 600 clamp(2.5rem, 8vw, 5rem)/1 ui-sans-serif, system-ui, sans-serif;
-    letter-spacing: -0.04em;
-  }
-  .preloader-word { font-size: 0.75rem; letter-spacing: 0.15em; text-transform: uppercase; opacity: 0.6; }
-  .preloader-bar { width: clamp(160px, 30vw, 280px); height: 1px; background: rgba(237,226,200,0.18); }
-  .preloader-fill { height: 100%; width: 0%; background: #ede2c8; transition: width 0.2s ease; }
-
-  body.no-webgl #webgl { display: none; }
-  body.no-webgl::before {
-    content: "WebGL unavailable — please use a modern browser with hardware acceleration";
-    position: fixed; inset: 0;
-    display: grid; place-items: center;
-    color: #888; font-size: 0.9rem; letter-spacing: 0.05em;
-    padding: 2rem; text-align: center;
+  .dev-badge{
+    position:fixed; bottom:0.8rem; left:0.8rem; z-index:60;
+    font-size:0.62rem; letter-spacing:0.06em; text-transform:uppercase;
+    color:var(--ink); opacity:0.35; pointer-events:none;
   }
 
-  .dev-badge {
-    position: fixed; bottom: 1rem; left: 1rem; z-index: 2000;
-    font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase;
-    color: #ede2c8; opacity: 0.4; pointer-events: none;
+  @media (prefers-reduced-motion: reduce){
+    .room{ scroll-snap-align:none; }
   }
 </style>
+</head>
+<body>
+
+<div id="preloader" aria-hidden="true">
+  <div class="preloader-word">Opening the House</div>
+  <div class="preloader-bar"><div class="preloader-fill"></div></div>
+</div>
+
+<canvas id="webgl" aria-hidden="true"></canvas>
+
+<div id="wayfinding" role="navigation" aria-label="Walkthrough progress">
+  <div id="room-counter">01 / 04 — Weight</div>
+  <div id="progress-track" aria-hidden="true"><div id="progress-fill"></div></div>
+  <button class="way-btn" id="btn-autowalk" aria-pressed="false">Auto-walk</button>
+  <button class="way-btn" id="btn-skip">Skip</button>
+</div>
+
+<div class="dev-badge">My Man — representative-room build, Weight only. Skin / Recovery / Desire not yet built.</div>
+
+<main class="scroll-container">
+
+  <section class="room" id="intro" data-room="intro">
+    <span class="room-eyebrow">THE HOUSE</span>
+    <h1 class="room-title">One house.<br>Many rooms.</h1>
+    <p class="room-copy">Inside the House are rooms. Each one holds a different area of care. A member walks into the room they need, at the time in life they need it.</p>
+  </section>
+
+  <section class="room" id="corridor-approach-weight" data-room="approach-weight">
+    <span class="room-meta">THE CORRIDOR</span>
+    <span class="room-meta right">approaching</span>
+  </section>
+
+  <section class="room" id="room-weight" data-room="weight" data-scene="weight">
+    <span class="room-meta">THE WEIGHT ROOM</span>
+    <span class="room-meta right" id="weight-counter">02 / 06</span>
+    <span class="room-eyebrow">THE WEIGHT ROOM</span>
+    <h2 class="room-title">Weight</h2>
+    <p class="room-copy">Metabolic care, prescriber led. For the season when the scales stop answering to effort alone.</p>
+  </section>
+
+  <section class="room" id="next-rooms" data-room="next">
+    <div>
+      <span class="room-eyebrow">SKIN &middot; RECOVERY &middot; DESIRE</span>
+      <p class="room-copy">The rest of the House — the Cosmetic Quarter, the Recovery Wing, and the Private Room that never opens — build next, once this room is approved.</p>
+      <span class="wip-badge">Not yet built — representative-room proof only</span>
+    </div>
+  </section>
+
+</main>
 
 <script type="importmap">
 {
@@ -128,425 +243,418 @@
 
 <script>
   window.addEventListener('error', (e) => {
-    console.error('[hol-concept]', e.message, e.error);
-    const c = document.querySelector('.preloader-counter');
-    if (c) c.textContent = 'ERR';
+    console.error('[hol-walkthrough]', e.message, e.error);
   });
 </script>
-</head>
-<body>
-
-<div id="preloader" aria-hidden="true">
-  <div class="preloader-counter">0</div>
-  <div class="preloader-word">Opening the House</div>
-  <div class="preloader-bar"><div class="preloader-fill"></div></div>
-</div>
-
-<canvas id="webgl"></canvas>
-<div class="dev-badge">My Man — technical concept, not final creative</div>
-
-<main class="scroll-container">
-  <section>
-    <span class="meta">THE HOUSE</span>
-    <span class="meta right">01 / 06</span>
-    <div class="room-name">One house.<br>Many rooms.</div>
-    <div class="room-copy">Inside the House are rooms. Each one holds a different area of care. A member walks into the room they need, at the time in life they need it.</div>
-  </section>
-
-  <section>
-    <span class="meta">THE WEIGHT ROOM</span>
-    <span class="meta right">02 / 06</span>
-    <div class="room-name">Weight</div>
-    <div class="room-copy">Metabolic care, prescriber led. For the season when the scales stop answering to effort alone.</div>
-  </section>
-
-  <section>
-    <span class="meta">THE COSMETIC QUARTER</span>
-    <span class="meta right">03 / 06</span>
-    <div class="room-name">Skin</div>
-    <div class="room-copy">Skin and appearance, clinically grounded. Looking like yourself, at your best, for longer.</div>
-  </section>
-
-  <section>
-    <span class="meta">THE PRIVATE ROOM</span>
-    <span class="meta right">04 / 06</span>
-    <div class="room-name">Desire</div>
-    <div class="room-copy">Libido and intimacy, handled with discretion and evidence. Spoken about plainly, behind a door that closes.</div>
-  </section>
-
-  <section>
-    <span class="meta">THE RECOVERY WING</span>
-    <span class="meta right">05 / 06</span>
-    <div class="room-name">Recovery</div>
-    <div class="room-copy">Sleep, repair and recovery. Where the body is rebuilt between the demands placed on it.</div>
-  </section>
-
-  <section>
-    <span class="meta">THE HOUSE</span>
-    <span class="meta right">06 / 06</span>
-    <div class="room-name">Nobody lives<br>in one room.</div>
-    <div class="room-copy">The door a member enters through is rarely the last room they visit. That is the point of a house.</div>
-  </section>
-</main>
 
 <script type="module">
 // ─────────────────────────────────────────────────────────────────────────
-// House of Longevity — "The Rooms" technical concept
-// Three.js r170 + GSAP 3.12.5 + Lenis 1.1.0 + three built-in EffectComposer
-// Camera walks a spline through 4 procedural bays, each themed to a room.
-// Built on the MIT awwwards-3d skill foundation (lerp loop, scroll loop,
-// post-processing chain, cleanup pattern all reused as-is).
+// House of Longevity — Rooms Walkthrough (representative room: Weight)
+//
+// ARCHITECTURE NOTE: this file implements the shared corridor engine
+// (capability gate, scene-record camera/text timeline, wayfinding,
+// measurement stubs, fallback) as data-driven infrastructure so that
+// Skin / Recovery / Desire become SCENE_RECORDS entries + a photo asset,
+// not new engine code, when they're approved for build.
 // ─────────────────────────────────────────────────────────────────────────
 
-function detectWebGL() {
+/* ---------- measurement (console/dataLayer stub, wire to analytics later) ---------- */
+function track(event, data) {
+  const payload = { event, ts: Date.now(), ...data };
+  console.log('[hol-measure]', payload);
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push(payload);
+}
+
+/* ---------- capability gate ---------- */
+function detectWebGL2() {
   try {
     const c = document.createElement('canvas');
-    const gl = c.getContext('webgl2') || c.getContext('webgl');
+    const gl = c.getContext('webgl2');
     if (!gl) return false;
     const dbg = gl.getExtension('WEBGL_debug_renderer_info');
     const r = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : '';
     return !/SwiftShader|Software|llvmpipe/i.test(r);
   } catch (e) { return false; }
 }
-if (!detectWebGL()) {
-  document.body.classList.add('no-webgl');
-  document.getElementById('preloader').classList.add('done');
-  throw new Error('WebGL unavailable');
+
+function capabilityCheck() {
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const saveData = navigator.connection && navigator.connection.saveData;
+  const slowConn = navigator.connection && /2g/.test(navigator.connection.effectiveType || '');
+  const lowMemory = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
+  const coarsePointer = window.matchMedia('(pointer: coarse)').matches; // mobile default: static-first
+  const webgl2 = detectWebGL2();
+
+  if (!webgl2) return { ok: false, reason: 'no-webgl2' };
+  if (prefersReducedMotion) return { ok: false, reason: 'reduced-motion' };
+  if (saveData) return { ok: false, reason: 'save-data' };
+  if (slowConn) return { ok: false, reason: 'slow-connection' };
+  if (lowMemory) return { ok: false, reason: 'low-device-memory' };
+  if (coarsePointer) return { ok: false, reason: 'mobile-static-default' };
+  return { ok: true };
 }
 
-import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import gsap from 'gsap';
-import ScrollTrigger from 'gsap/ScrollTrigger';
-import Lenis from 'lenis';
+const cap = capabilityCheck();
+const preloader = document.getElementById('preloader');
 
-gsap.registerPlugin(ScrollTrigger);
+// QA override only: ?forcecine=1 bypasses the capability gate so My Girl can
+// review the cinematic layer on a device that would otherwise default to the
+// static fallback (e.g. a touchscreen laptop). Never used for real visitors —
+// the gate above still applies untouched for everyone without the param.
+const forceCine = new URLSearchParams(location.search).get('forcecine') === '1';
 
-// ── renderer ────────────────────────────────────────────────────────────
-const canvas = document.getElementById('webgl');
-const renderer = new THREE.WebGLRenderer({
-  canvas, antialias: false, powerPreference: 'high-performance', stencil: false, depth: true,
-});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.95;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.VSMShadowMap;
-
-// ── scene & camera ──────────────────────────────────────────────────────
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0907);
-scene.fog = new THREE.FogExp2(0x0a0907, 0.045);
-
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.05, 100);
-
-// ── environment ─────────────────────────────────────────────────────────
-const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-pmrem.dispose();
-
-// ── the four rooms ──────────────────────────────────────────────────────
-// Corridor runs along -Z. Each bay is 9 units deep, 6 wide, 4.4 high.
-// Bay order matches scroll order: Weight -> Cosmetic -> Private -> Recovery.
-const BAY_DEPTH = 9;
-const BAY_WIDTH = 6;
-const BAY_HEIGHT = 4.4;
-
-const ROOMS = [
-  { name: 'weight',   z: -2,                 color: 0xb5793a, emissive: 0xffb066, mood: 'warm bronze — earned effort' },
-  { name: 'cosmetic',  z: -2 - BAY_DEPTH,     color: 0xc9a3a8, emissive: 0xffd9de, mood: 'soft rose gold — clarity, mirror-lit' },
-  { name: 'private',   z: -2 - BAY_DEPTH * 2, color: 0x5c2430, emissive: 0xff5a72, mood: 'deep burgundy — low, intimate light' },
-  { name: 'recovery',  z: -2 - BAY_DEPTH * 3, color: 0x2c4a5c, emissive: 0x6fd0ff, mood: 'cool restorative blue' },
-];
-
-const stage = new THREE.Group(); stage.name = 'stage';
-const lighting = new THREE.Group(); lighting.name = 'lighting';
-
-function buildBay(room) {
-  const bay = new THREE.Group();
-  bay.name = `bay-${room.name}`;
-  const cz = room.z - BAY_DEPTH / 2;
-
-  // Floor
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0x141210, roughness: 0.75, metalness: 0.05 });
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(BAY_WIDTH, 0.2, BAY_DEPTH), floorMat);
-  floor.position.set(0, -0.1, cz);
-  floor.receiveShadow = true;
-  bay.add(floor);
-
-  // Side walls (thin, tall) — subtle room-color wash
-  const wallMat = new THREE.MeshStandardMaterial({ color: room.color, roughness: 0.85, metalness: 0.0 });
-  const wallL = new THREE.Mesh(new THREE.BoxGeometry(0.15, BAY_HEIGHT, BAY_DEPTH), wallMat);
-  wallL.position.set(-BAY_WIDTH / 2, BAY_HEIGHT / 2, cz);
-  wallL.receiveShadow = true;
-  const wallR = wallL.clone();
-  wallR.position.x = BAY_WIDTH / 2;
-  bay.add(wallL, wallR);
-
-  // Threshold marker (the "door" between rooms) — a thin emissive frame at bay entrance (high-Z end)
-  const doorMat = new THREE.MeshStandardMaterial({
-    color: 0x0a0907, emissive: room.emissive, emissiveIntensity: 0.9, roughness: 0.4,
-  });
-  const doorFrame = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.035, 12, 48), doorMat);
-  doorFrame.position.set(0, BAY_HEIGHT / 2 - 0.3, room.z);
-  doorFrame.rotation.y = Math.PI / 2;
-  bay.add(doorFrame);
-
-  // Hero object per room — abstract, not literal (icosahedron = shared "house" motif,
-  // each room's material carries the differentiation, not the shape)
-  const heroMat = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff, metalness: 0.3, roughness: 0.25,
-    emissive: room.emissive, emissiveIntensity: 0.25, envMapIntensity: 1.3,
-  });
-  const hero = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 3), heroMat);
-  hero.position.set(0, 1.6, cz);
-  hero.castShadow = true;
-  hero.userData.baseY = 1.6;
-  bay.add(hero);
-
-  // Room-colored point light — the emotional signature of each bay
-  const light = new THREE.PointLight(room.emissive, 3.2, 9, 1.8);
-  light.position.set(0, 3.2, cz);
-  light.castShadow = true;
-  light.shadow.mapSize.set(512, 512);
-  light.shadow.bias = -0.0006;
-  lighting.add(light);
-
-  return { bay, hero, light };
+if (!cap.ok && !forceCine) {
+  // FALLBACK PATH: static DOM stands entirely on its own. No canvas mounted.
+  preloader.classList.add('done');
+  track('fallback_served', { reason: cap.reason });
+  setupWayfinding(null); // wayfinding still works via plain scrollIntoView
+} else {
+  bootCinematic();
 }
 
-const bays = ROOMS.map(buildBay);
-bays.forEach(({ bay }) => stage.add(bay));
+/* ---------- wayfinding (works in both fallback and cinematic modes) ---------- */
+function setupWayfinding(getProgress) {
+  const track_ = document.getElementById('progress-track');
+  const fill = document.getElementById('progress-fill');
+  const counter = document.getElementById('room-counter');
+  const btnSkip = document.getElementById('btn-skip');
+  const btnAuto = document.getElementById('btn-autowalk');
+  const sections = Array.from(document.querySelectorAll('.room'));
+  let autoWalking = false;
+  let maxDepth = 0;
 
-// Threshold / entrance slab (before room 1)
-const entranceFloor = new THREE.Mesh(
-  new THREE.BoxGeometry(BAY_WIDTH + 1, 0.2, 4),
-  new THREE.MeshStandardMaterial({ color: 0x141210, roughness: 0.75 }),
-);
-entranceFloor.position.set(0, -0.1, 1);
-entranceFloor.receiveShadow = true;
-stage.add(entranceFloor);
+  function currentRoomLabel() {
+    const mid = window.scrollY + window.innerHeight * 0.5;
+    let active = sections[0];
+    for (const s of sections) {
+      if (s.offsetTop <= mid) active = s; else break;
+    }
+    const map = {
+      intro: 'Intro', 'approach-weight': 'Approaching', weight: 'Weight', next: 'Coming next',
+    };
+    return map[active.dataset.room] || '';
+  }
 
-// End cap — soft glow at corridor's far end ("nobody lives in one room")
-const endGlow = new THREE.PointLight(0xffe6b3, 2.0, 10, 2.0);
-endGlow.position.set(0, 2.2, ROOMS[ROOMS.length - 1].z - BAY_DEPTH / 2 - 1);
-lighting.add(endGlow);
+  function updateProgress() {
+    const doc = document.documentElement;
+    const max = doc.scrollHeight - window.innerHeight;
+    const pct = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+    if (fill) fill.style.width = (pct * 100).toFixed(1) + '%';
+    if (pct > maxDepth) { maxDepth = pct; track('journey_depth', { depth: Number(pct.toFixed(3)) }); }
+    if (counter) counter.textContent = currentRoomLabel();
+  }
 
-scene.add(stage);
+  window.addEventListener('scroll', updateProgress, { passive: true });
+  updateProgress();
 
-// Ambient bounce + faint hemisphere so unlit corridor sections aren't pure black
-lighting.add(new THREE.AmbientLight(0xffffff, 0.12));
-lighting.add(new THREE.HemisphereLight(0x445566, 0x0a0907, 0.25));
-scene.add(lighting);
-
-// ── camera spline (threshold -> 4 bays -> beyond) ───────────────────────
-const corridorEnd = ROOMS[ROOMS.length - 1].z - BAY_DEPTH / 2 - 1.5;
-const path = new THREE.CatmullRomCurve3([
-  new THREE.Vector3(0, 1.6, 6),                                    // outside, looking in
-  new THREE.Vector3(0, 1.6, 2),                                    // threshold
-  new THREE.Vector3(0.6, 1.58, ROOMS[0].z),                        // Weight — slight drift right
-  new THREE.Vector3(-0.6, 1.6, ROOMS[1].z),                        // Cosmetic — drift left
-  new THREE.Vector3(0.5, 1.55, ROOMS[2].z),                        // Private — tighter, lower
-  new THREE.Vector3(-0.4, 1.62, ROOMS[3].z),                       // Recovery
-  new THREE.Vector3(0, 1.7, corridorEnd),                          // beyond — opens up
-], false, 'catmullrom', 0.35);
-
-const lookPath = new THREE.CatmullRomCurve3([
-  new THREE.Vector3(0, 1.6, 2),
-  new THREE.Vector3(0, 1.6, ROOMS[0].z - 1),
-  new THREE.Vector3(0, 1.6, ROOMS[1].z - 1),
-  new THREE.Vector3(0, 1.6, ROOMS[2].z - 1),
-  new THREE.Vector3(0, 1.6, ROOMS[3].z - 1),
-  new THREE.Vector3(0, 1.9, corridorEnd - 3),
-], false, 'catmullrom', 0.4);
-
-// ── post-processing (same canonical chain as the reference template) ────
-const hdrTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, { type: THREE.HalfFloatType });
-const composer = new EffectComposer(renderer, hdrTarget);
-composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-composer.setSize(window.innerWidth, window.innerHeight);
-composer.addPass(new RenderPass(scene, camera));
-
-const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.55, 0.5, 0.72);
-composer.addPass(bloomPass);
-
-const vignettePass = new ShaderPass({
-  uniforms: { tDiffuse: { value: null }, uOffset: { value: 0.32 }, uDarkness: { value: 0.68 } },
-  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-  fragmentShader: `
-    uniform sampler2D tDiffuse; uniform float uOffset; uniform float uDarkness; varying vec2 vUv;
-    void main(){
-      vec4 c = texture2D(tDiffuse, vUv);
-      vec2 uv = vUv - 0.5;
-      float v = smoothstep(0.85, uOffset, length(uv));
-      gl_FragColor = vec4(mix(c.rgb*(1.0-uDarkness), c.rgb, v), c.a);
-    }`,
-});
-composer.addPass(vignettePass);
-composer.addPass(new OutputPass());
-
-const grainPass = new ShaderPass({
-  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uIntensity: { value: 0.055 } },
-  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-  fragmentShader: `
-    uniform sampler2D tDiffuse; uniform float uTime; uniform float uIntensity; varying vec2 vUv;
-    float rand(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
-    void main(){
-      vec4 c = texture2D(tDiffuse, vUv);
-      float n = rand(vUv+uTime)-0.5;
-      gl_FragColor = vec4(c.rgb + n*uIntensity, c.a);
-    }`,
-});
-composer.addPass(grainPass);
-
-// ── lerp state ──────────────────────────────────────────────────────────
-const state = {
-  pathT:  { current: 0, target: 0, ease: 0.055 },
-  mouseX: { current: 0, target: 0, ease: 0.10 },
-  mouseY: { current: 0, target: 0, ease: 0.10 },
-};
-function damp(s, dt) { const f = 1 - Math.pow(1 - s.ease, dt * 60); s.current += (s.target - s.current) * f; }
-
-// ── Lenis + ScrollTrigger ────────────────────────────────────────────────
-const lenis = new Lenis({
-  duration: 1.3,
-  easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-  smoothWheel: true,
-  prevent: () => false,
-});
-lenis.on('scroll', ScrollTrigger.update);
-gsap.ticker.add((time) => lenis.raf(time * 1000));
-gsap.ticker.lagSmoothing(0);
-
-gsap.timeline({
-  scrollTrigger: { trigger: '.scroll-container', start: 'top top', end: 'bottom bottom', scrub: true },
-}).to(state.pathT, { target: 1.0, ease: 'none' }, 0);
-
-if (!window.matchMedia('(pointer: coarse)').matches) {
-  window.addEventListener('mousemove', (e) => {
-    state.mouseX.target = (e.clientX / window.innerWidth) * 2 - 1;
-    state.mouseY.target = -((e.clientY / window.innerHeight) * 2 - 1);
+  btnSkip.addEventListener('click', () => {
+    track('skip_used', {});
+    const target = document.getElementById('next-rooms');
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
+
+  btnAuto.addEventListener('click', () => {
+    autoWalking = !autoWalking;
+    btnAuto.setAttribute('aria-pressed', String(autoWalking));
+    btnAuto.textContent = autoWalking ? 'Auto-walking…' : 'Auto-walk';
+    track('autowalk_used', { active: autoWalking });
+    if (autoWalking) runAutoWalk();
+  });
+
+  function runAutoWalk() {
+    if (!autoWalking) return;
+    const doc = document.documentElement;
+    const max = doc.scrollHeight - window.innerHeight;
+    const startY = window.scrollY;
+    const duration = 10000; // ~10s per room, per brief
+    const remainingRooms = Math.max(1, sections.length - sections.findIndex(s => window.scrollY >= s.offsetTop));
+    const targetY = Math.min(max, startY + (max / sections.length) * 1);
+    const t0 = performance.now();
+    function step(now) {
+      if (!autoWalking) return;
+      const p = Math.min(1, (now - t0) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      window.scrollTo(0, startY + (targetY - startY) * eased);
+      if (p < 1) requestAnimationFrame(step);
+      else if (autoWalking && window.scrollY < max - 2) runAutoWalk();
+      else { autoWalking = false; btnAuto.setAttribute('aria-pressed', 'false'); btnAuto.textContent = 'Auto-walk'; }
+    }
+    requestAnimationFrame(step);
+  }
+
+  // manual scroll cancels auto-walk
+  window.addEventListener('wheel', () => { if (autoWalking) { autoWalking = false; btnAuto.setAttribute('aria-pressed','false'); btnAuto.textContent = 'Auto-walk'; } }, { passive: true });
+  window.addEventListener('touchmove', () => { if (autoWalking) { autoWalking = false; btnAuto.setAttribute('aria-pressed','false'); btnAuto.textContent = 'Auto-walk'; } }, { passive: true });
 }
 
-// ── resize ──────────────────────────────────────────────────────────────
-let resizePending = false;
-function onResize() {
-  if (resizePending) return;
-  resizePending = true;
-  requestAnimationFrame(() => {
+/* ---------- cinematic boot ---------- */
+async function bootCinematic() {
+  document.body.classList.add('cine-active');
+
+  const [THREE, { EffectComposer }, { RenderPass }, { ShaderPass }, { OutputPass }, gsapMod, STMod, LenisMod] = await Promise.all([
+    import('three'),
+    import('three/addons/postprocessing/EffectComposer.js'),
+    import('three/addons/postprocessing/RenderPass.js'),
+    import('three/addons/postprocessing/ShaderPass.js'),
+    import('three/addons/postprocessing/OutputPass.js'),
+    import('gsap'),
+    import('gsap/ScrollTrigger'),
+    import('lenis'),
+  ]);
+  const gsap = gsapMod.default;
+  const ScrollTrigger = STMod.default;
+  const Lenis = LenisMod.default;
+  gsap.registerPlugin(ScrollTrigger);
+
+  /* ---------- scene records: the data that drives camera + text + mood ----------
+     Rooms 2-4 (skin/recovery/desire) are added here as data only, once built. */
+  const SCENE_RECORDS = [
+    {
+      id: 'intro',
+      selector: '#intro',
+      photo: null,
+      mood: { bg: '#050403', deep: '#050403' },
+      doorTemp: null,
+    },
+    {
+      id: 'approach-weight',
+      selector: '#corridor-approach-weight',
+      photo: 'img/corridor-approach.webp',
+      mood: { bg: '#0a0806', deep: '#050403' },
+      doorTemp: '#f3e6c9', // Weight/Skin: pale bright morning-white, per corridor lock rule 2
+    },
+    {
+      id: 'weight',
+      selector: '#room-weight',
+      photo: 'img/weight.webp',
+      mood: { bg: '#a18e76', deep: '#6b5a43', accent: '#d6c7b7' }, // measured palette, lock file
+      doorTemp: null,
+    },
+    {
+      id: 'next',
+      selector: '#next-rooms',
+      photo: null,
+      mood: { bg: '#050403', deep: '#050403' },
+      doorTemp: null,
+    },
+  ];
+
+  // preload weight now (priority), corridor images alongside (small set, cheap)
+  const preloadTextures = (loader, urls) => Promise.all(urls.map(u => new Promise((resolve) => {
+    loader.load(u, (tex) => { tex.colorSpace = THREE.SRGBColorSpace; resolve(tex); }, undefined, () => resolve(null));
+  })));
+
+  const renderer = new THREE.WebGLRenderer({
+    canvas: document.getElementById('webgl'), antialias: false,
+    powerPreference: 'high-performance', stencil: false, depth: true,
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x050403);
+  scene.fog = new THREE.FogExp2(0x050403, 0.06);
+
+  const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.05, 60);
+
+  const loader = new THREE.TextureLoader();
+  const textures = await preloadTextures(loader, SCENE_RECORDS.filter(r => r.photo).map(r => r.photo));
+  const texByUrl = {};
+  SCENE_RECORDS.filter(r => r.photo).forEach((r, i) => { texByUrl[r.photo] = textures[i]; });
+
+  // ── photo planes: seated in bays, cover-fit, feathered edges via alpha shader ──
+  const BAY_WIDTH = 7, BAY_HEIGHT = 4.2;
+  const featherMat = (tex, tintHex) => new THREE.ShaderMaterial({
+    uniforms: {
+      map: { value: tex },
+      tint: { value: new THREE.Color(tintHex || '#ffffff') },
+      feather: { value: 0.22 },
+    },
+    transparent: true,
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader: `
+      uniform sampler2D map; uniform vec3 tint; uniform float feather;
+      varying vec2 vUv;
+      void main(){
+        vec4 c = texture2D(map, vUv);
+        vec2 d = abs(vUv - 0.5) * 2.0;
+        float edge = max(d.x, d.y);
+        float a = 1.0 - smoothstep(1.0 - feather, 1.0, edge);
+        gl_FragColor = vec4(c.rgb * tint, a);
+      }`,
+  });
+
+  const planeGroup = new THREE.Group();
+  const roomZ = { intro: 4, 'approach-weight': -2, weight: -10, next: -18 };
+  const planes = {};
+  SCENE_RECORDS.filter(r => r.photo).forEach((r) => {
+    const tex = texByUrl[r.photo];
+    if (!tex) return;
+    const aspect = (tex.image && tex.image.width && tex.image.height) ? tex.image.width / tex.image.height : 16/9;
+    let w = BAY_WIDTH, h = w / aspect;
+    if (h < BAY_HEIGHT) { h = BAY_HEIGHT; w = h * aspect; }
+    const geo = new THREE.PlaneGeometry(w, h, 1, 1);
+    const mat = featherMat(tex, r.mood.accent || '#ffffff');
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(0, BAY_HEIGHT / 2 - 0.2, roomZ[r.id] ?? 0);
+    planeGroup.add(mesh);
+    planes[r.id] = mesh;
+
+    // light spill onto the corridor floor beneath the plane, tinted to room mood
+    const spill = new THREE.PointLight(new THREE.Color(r.mood.accent || r.mood.bg), 2.2, 8, 2.0);
+    spill.position.set(0, 0.6, (roomZ[r.id] ?? 0) + 1.2);
+    planeGroup.add(spill);
+  });
+  scene.add(planeGroup);
+
+  // threshold marker for the approach-weight bay — warm gold family, per requirement 4
+  const doorGeo = new THREE.RingGeometry(0.9, 1.02, 48);
+  const doorMat = new THREE.MeshBasicMaterial({ color: 0xf3e6c9, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
+  const doorMarker = new THREE.Mesh(doorGeo, doorMat);
+  doorMarker.position.set(0, BAY_HEIGHT / 2 - 0.2, roomZ['weight'] + 3);
+  scene.add(doorMarker);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.10));
+
+  /* ---------- camera path: threshold -> approach -> weight -> beyond ----------
+     ONE THRESHOLD AT MOST visible at a time is enforced by z-spacing + fog,
+     not by hiding meshes — matches the corridor lock's "distance IS the
+     massive house" rule. */
+  const path = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0, 1.6, 8),
+    new THREE.Vector3(0, 1.6, 2),
+    new THREE.Vector3(0.3, 1.55, roomZ['weight'] + 3),
+    new THREE.Vector3(0, 1.6, roomZ['weight']),
+    new THREE.Vector3(-0.2, 1.65, roomZ['weight'] - 4),
+    new THREE.Vector3(0, 1.7, roomZ['next']),
+  ], false, 'catmullrom', 0.3);
+
+  const lookPath = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0, 1.6, 2),
+    new THREE.Vector3(0, 1.6, roomZ['weight'] + 2),
+    new THREE.Vector3(0, 1.6, roomZ['weight'] - 2),
+    new THREE.Vector3(0, 1.7, roomZ['weight'] - 6),
+    new THREE.Vector3(0, 1.8, roomZ['next'] - 3),
+  ], false, 'catmullrom', 0.3);
+
+  const hdrTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, { type: THREE.HalfFloatType });
+  const composer = new EffectComposer(renderer, hdrTarget);
+  composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  composer.setSize(window.innerWidth, window.innerHeight);
+  composer.addPass(new RenderPass(scene, camera));
+
+  const vignettePass = new ShaderPass({
+    uniforms: { tDiffuse: { value: null }, uDarkness: { value: 0.6 } },
+    vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader: `
+      uniform sampler2D tDiffuse; uniform float uDarkness; varying vec2 vUv;
+      void main(){
+        vec4 c = texture2D(tDiffuse, vUv);
+        vec2 uv = vUv - 0.5;
+        float v = smoothstep(0.85, 0.3, length(uv));
+        gl_FragColor = vec4(mix(c.rgb*(1.0-uDarkness), c.rgb, v), c.a);
+      }`,
+  });
+  composer.addPass(vignettePass);
+  composer.addPass(new OutputPass());
+
+  /* ---------- scroll timeline: shared clock for camera + mood + text ---------- */
+  const lenis = new Lenis({ duration: 1.2, smoothWheel: true, prevent: () => false });
+  lenis.on('scroll', ScrollTrigger.update);
+  gsap.ticker.add((time) => lenis.raf(time * 1000));
+  gsap.ticker.lagSmoothing(0);
+
+  const state = { t: 0 };
+  gsap.timeline({
+    scrollTrigger: { trigger: '.scroll-container', start: 'top top', end: 'bottom bottom', scrub: 0.4 },
+  }).to(state, { t: 1, ease: 'none' }, 0);
+
+  // room text choreography — bound to the SAME timeline as the camera, not raw
+  // scroll distance, so exits complete before the next room's text enters
+  // (this is the fix-by-construction for the round-1 stranded-copy defect).
+  const roomEls = {
+    intro: document.getElementById('intro'),
+    'approach-weight': document.getElementById('corridor-approach-weight'),
+    weight: document.getElementById('room-weight'),
+    next: document.getElementById('next-rooms'),
+  };
+  Object.entries(roomEls).forEach(([id, el]) => {
+    const textNode = el.querySelector('.room-title, .room-copy')?.parentElement || el;
+    ScrollTrigger.create({
+      trigger: el,
+      start: 'top 70%',
+      end: 'bottom 30%',
+      onEnter: () => { track('room_enter', { room: id }); el.dataset.enterTs = Date.now(); },
+      onLeave: () => { if (el.dataset.enterTs) track('room_dwell_ms', { room: id, ms: Date.now() - Number(el.dataset.enterTs) }); },
+      onEnterBack: () => { el.dataset.enterTs = Date.now(); },
+      onLeaveBack: () => { if (el.dataset.enterTs) track('room_dwell_ms', { room: id, ms: Date.now() - Number(el.dataset.enterTs) }); },
+    });
+  });
+
+  function onResize() {
     const w = window.innerWidth, h = window.innerHeight;
     camera.aspect = w / h; camera.updateProjectionMatrix();
     renderer.setSize(w, h); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    composer.setSize(w, h); bloomPass.resolution.set(w, h);
-    resizePending = false;
-  });
-}
-window.addEventListener('resize', onResize);
-
-// ── visibility pause ────────────────────────────────────────────────────
-const clock = new THREE.Clock();
-let running = true, rafId = 0;
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { running = false; cancelAnimationFrame(rafId); }
-  else if (!running) { running = true; clock.getDelta(); tick(); }
-});
-
-// ── main tick ───────────────────────────────────────────────────────────
-const tmpPos = new THREE.Vector3();
-const tmpAim = new THREE.Vector3();
-const tmpUp  = new THREE.Vector3(0, 1, 0);
-
-function tick() {
-  if (!running) return;
-  const delta = Math.min(clock.getDelta(), 0.1);
-  const t = clock.elapsedTime;
-
-  for (const k in state) damp(state[k], delta);
-
-  const tt = THREE.MathUtils.clamp(state.pathT.current, 0, 1);
-  path.getPointAt(tt, tmpPos);
-  lookPath.getPointAt(tt, tmpAim);
-
-  tmpPos.x += state.mouseX.current * 0.08;
-  tmpPos.y += state.mouseY.current * 0.05;
-
-  camera.position.copy(tmpPos);
-  camera.up.copy(tmpUp);
-  camera.lookAt(tmpAim);
-
-  // Hero objects: gentle hover + rotation, each room slightly different cadence
-  bays.forEach(({ hero }, i) => {
-    hero.position.y = hero.userData.baseY + Math.sin(t * (0.8 + i * 0.15)) * 0.06;
-    hero.rotation.y = t * (0.3 + i * 0.05);
-  });
-
-  grainPass.uniforms.uTime.value = t;
-  composer.render();
-  rafId = requestAnimationFrame(tick);
-}
-
-// ── preloader (fixed short sequence — no external assets to wait on) ────
-const preloader = document.getElementById('preloader');
-const counterEl = preloader.querySelector('.preloader-counter');
-const fillEl = preloader.querySelector('.preloader-fill');
-let pct = 0;
-const loadTimer = setInterval(() => {
-  pct = Math.min(100, pct + 14);
-  counterEl.textContent = pct;
-  fillEl.style.width = pct + '%';
-  if (pct >= 100) {
-    clearInterval(loadTimer);
-    setTimeout(playIntro, 220);
+    composer.setSize(w, h);
   }
-}, 70);
+  window.addEventListener('resize', onResize);
 
-function playIntro() {
-  preloader.classList.add('done');
-  renderer.compile(scene, camera);
-  composer.render(0.016);
+  const clock = new THREE.Clock();
+  let running = true, rafId = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { running = false; cancelAnimationFrame(rafId); }
+    else if (!running) { running = true; clock.getDelta(); tick(); }
+  });
 
-  path.getPointAt(0, tmpPos);
-  camera.position.copy(tmpPos);
+  const tmpPos = new THREE.Vector3(), tmpAim = new THREE.Vector3();
+  function tick() {
+    if (!running) return;
+    const tt = THREE.MathUtils.clamp(state.t, 0, 1);
+    path.getPointAt(tt, tmpPos);
+    lookPath.getPointAt(tt, tmpAim);
+    camera.position.copy(tmpPos);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(tmpAim);
 
-  const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
-  tl.from(camera, { fov: 62, duration: 2.0, onUpdate: () => camera.updateProjectionMatrix() }, 0);
-  bays.forEach(({ light }, i) => {
-    tl.from(light, { intensity: 0, duration: 1.4 }, 0.3 + i * 0.08);
+    // subtle velocity-driven "breath" on the weight plane
+    const wp = planes['weight'];
+    if (wp) {
+      const dz = Math.abs(camera.position.z - wp.position.z);
+      const closeness = THREE.MathUtils.clamp(1 - dz / 10, 0, 1);
+      wp.scale.setScalar(1 + closeness * 0.015 * Math.sin(clock.elapsedTime * 0.6));
+    }
+    composer.render();
+    rafId = requestAnimationFrame(tick);
+  }
+
+  // ── preloader sequence ──
+  const fillEl = preloader.querySelector('.preloader-fill');
+  let pct = 0;
+  const timer = setInterval(() => {
+    pct = Math.min(100, pct + 16);
+    if (fillEl) fillEl.style.width = pct + '%';
+    if (pct >= 100) { clearInterval(timer); setTimeout(() => { preloader.classList.add('done'); }, 200); }
+  }, 60);
+
+  tick();
+  setupWayfinding(() => state.t);
+
+  // DEBUG HOOK (temporary, for local QA only — not part of the deployed brief)
+  window.__hol_debug = () => ({
+    stateT: state.t,
+    cameraPos: camera.position.toArray(),
+    weightPlanePos: planes['weight'] ? planes['weight'].position.toArray() : null,
+    weightPlaneOpacity: planes['weight'] ? planes['weight'].material.uniforms.map.value : null,
+    weightTexLoaded: !!texByUrl['img/weight.webp'],
+    weightTexImage: texByUrl['img/weight.webp'] && texByUrl['img/weight.webp'].image ? [texByUrl['img/weight.webp'].image.width, texByUrl['img/weight.webp'].image.height] : null,
+    fogDensity: scene.fog.density,
+    sceneChildren: scene.children.length,
   });
 }
-
-// ── start ───────────────────────────────────────────────────────────────
-tick();
-
-// ── teardown ────────────────────────────────────────────────────────────
-window.__hol_concept_destroy = () => {
-  cancelAnimationFrame(rafId);
-  lenis.destroy();
-  ScrollTrigger.getAll().forEach((t) => t.kill());
-  scene.traverse((o) => {
-    if (o.geometry) o.geometry.dispose();
-    if (o.material) {
-      const mats = Array.isArray(o.material) ? o.material : [o.material];
-      mats.forEach((m) => {
-        for (const k of Object.keys(m)) { if (m[k] && m[k].isTexture) m[k].dispose(); }
-        m.dispose();
-      });
-    }
-  });
-  composer.renderTarget1?.dispose();
-  composer.renderTarget2?.dispose();
-  hdrTarget.dispose();
-  renderer.dispose();
-  renderer.forceContextLoss();
-};
 </script>
 
 </body>
