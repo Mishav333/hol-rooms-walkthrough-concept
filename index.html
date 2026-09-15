@@ -3,10 +3,13 @@
   ┌──────────────────────────────────────────────────────────────────┐
   │ House of Longevity — Rooms Walkthrough                           │
   │ Representative room build: THE WEIGHT ROOM                       │
-  │ Built by My Man, against locked visual targets + brief from      │
-  │ My Girl. Not final creative sign-off — QA gate is My Girl's.     │
-  │ Rooms Skin / Recovery / Desire are locked content, NOT YET BUILT  │
-  │ in this pass (see BUILD-STATUS.md, "prove one room first").       │
+  │ Round 2: composition-layer fixes per My Girl's QA-REPORT          │
+  │ (ring removed, full-bleed at dwell, forward-dolly only, no        │
+  │ frame emptier than the locked corridor-between floor, in-scene    │
+  │ text choreography, clean end-state). Engine layer unchanged —     │
+  │ passed round 1. Not final creative sign-off — QA gate is          │
+  │ My Girl's. Rooms Skin / Recovery / Desire are locked content,     │
+  │ NOT YET BUILT in this pass (see BUILD-STATUS.md).                 │
   └──────────────────────────────────────────────────────────────────┘
 -->
 <html lang="en">
@@ -34,7 +37,15 @@
     color:var(--ink);
     overscroll-behavior:none;
   }
+  /* ── ambient floor-of-darkness backdrop (defect 4) ──
+     The locked corridor-between photo is the FLOOR of darkness: no frame in the
+     journey may be emptier/darker than it. This sits behind the canvas and the
+     static room layers at all times, so travel and dead zones never go to pure
+     black void — matches the corridor lock's "always legible travertine" rule. */
   body{
+    background:
+      linear-gradient(rgba(5,4,3,0.12), rgba(5,4,3,0.12)),
+      url('img/corridor-between.webp') center/cover fixed no-repeat;
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing:antialiased;
   }
@@ -42,9 +53,15 @@
   .lenis.lenis-smooth{ scroll-behavior:auto !important; }
   .lenis.lenis-stopped{ overflow:hidden; }
 
-  /* ── static / fallback layer (always present, real DOM, crawlable) ── */
+  /* ── static / fallback layer (always present, real DOM, crawlable) ──
+     z-index:3 — DELIBERATELY ABOVE the cinematic canvas (z-index:1 below).
+     Round-2 defect 5 root cause: canvas used to sit at z-index:2 ABOVE the
+     text (z-index:1), so title/copy were physically painted behind the
+     opaque WebGL layer and could never be seen while the cinematic layer
+     was mounted. Text must render IN-SCENE, on top of the canvas. */
   .room{
     position:relative;
+    z-index:3;
     min-height:100vh;
     display:flex;
     flex-direction:column;
@@ -91,16 +108,30 @@
   }
   .room-meta.right{ left:auto; right:clamp(1.5rem,5vw,4rem); }
 
-  #intro{ background:#050403; align-items:center; text-align:center; }
+  #intro{ background:linear-gradient(rgba(5,4,3,0.45),rgba(5,4,3,0.45)), url('img/corridor-between.webp') center/cover no-repeat; align-items:center; text-align:center; }
   #intro .room-title{ max-width:none; }
-  #intro::before{ background:radial-gradient(ellipse at center, rgba(20,15,10,0.2), rgba(5,4,3,0.9)); }
+  #intro::before{ background:radial-gradient(ellipse at center, rgba(20,15,10,0.15), rgba(5,4,3,0.5)); }
 
   #corridor-approach-weight{ background-image:url('img/corridor-approach.webp'); }
+  /* corridor-approach carries only small corner labels, not a text block that
+     needs heavy legibility darkening — a lighter ::before here keeps this
+     travel stretch no darker than the locked corridor-between floor. */
+  #corridor-approach-weight::before{
+    background:
+      linear-gradient(to top, rgba(5,4,3,0.55) 0%, rgba(5,4,3,0.1) 30%, rgba(5,4,3,0.1) 70%, rgba(5,4,3,0.35) 100%),
+      radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(5,4,3,0.3) 100%);
+  }
+  body.cine-active #corridor-approach-weight::before{
+    background:linear-gradient(to top, rgba(5,4,3,0.35) 0%, rgba(5,4,3,0.03) 30%, rgba(5,4,3,0.03) 70%, rgba(5,4,3,0.2) 100%);
+  }
   #room-weight{ background-image:url('img/weight.webp'); }
   #room-weight .room-eyebrow{ color:#f3e6c9; }
 
+  /* defect 6: after Weight the preview must resolve cleanly, not end in black
+     void — carry the corridor-between photo through as the resolve card so
+     there is legible content (not pure black) at the end of the journey too. */
   #next-rooms{
-    background:#050403;
+    background:linear-gradient(rgba(5,4,3,0.45),rgba(5,4,3,0.45)), url('img/corridor-between.webp') center/cover no-repeat;
     min-height:60vh;
     justify-content:center;
     align-items:center;
@@ -144,19 +175,22 @@
   .way-btn:hover{ border-color:rgba(237,226,200,0.8); background:rgba(237,226,200,0.06); }
   .way-btn[aria-pressed="true"]{ background:var(--gold); color:#050403; border-color:var(--gold); }
 
-  /* ── cinematic canvas layer (only mounted when capable) ── */
+  /* ── cinematic canvas layer (only mounted when capable) ──
+     z-index:1 — BELOW .room (z-index:3), so in-scene text always paints on
+     top of the canvas. The canvas only needs to sit above the plain page
+     background (no explicit z-index) and below every DOM room. */
   #webgl{
     position:fixed; inset:0;
     width:100%; height:100%;
     pointer-events:none;
-    z-index:2;
+    z-index:1;
     opacity:0; transition:opacity 0.8s ease;
   }
   body.cine-active #webgl{ opacity:1; }
   /* when the cinematic layer is live, hide the static bg images (canvas replaces them)
      but keep every DOM text node exactly as-is — this is the DOM-mirror invariant */
   body.cine-active .room{ background-image:none !important; }
-  body.cine-active .room::before{ background:linear-gradient(to top, rgba(5,4,3,0.85) 0%, rgba(5,4,3,0.15) 45%, rgba(5,4,3,0.1) 60%, rgba(5,4,3,0.55) 100%); }
+  body.cine-active .room::before{ background:linear-gradient(to top, rgba(5,4,3,0.78) 0%, rgba(5,4,3,0.05) 45%, rgba(5,4,3,0.02) 60%, rgba(5,4,3,0.45) 100%); }
 
   #preloader{
     position:fixed; inset:0; z-index:9000;
@@ -196,7 +230,7 @@
   <button class="way-btn" id="btn-skip">Skip</button>
 </div>
 
-<div class="dev-badge">My Man — representative-room build, Weight only. Skin / Recovery / Desire not yet built.</div>
+<div class="dev-badge">My Man — representative-room build, Weight only, round 2. Skin / Recovery / Desire not yet built.</div>
 
 <main class="scroll-container">
 
@@ -445,19 +479,32 @@ async function bootCinematic() {
     loader.load(u, (tex) => { tex.colorSpace = THREE.SRGBColorSpace; resolve(tex); }, undefined, () => resolve(null));
   })));
 
+  // DOM room refs — needed early by both the camera-path sync (below) and
+  // the text choreography (later); single source of truth for both.
+  const roomEls = {
+    intro: document.getElementById('intro'),
+    'approach-weight': document.getElementById('corridor-approach-weight'),
+    weight: document.getElementById('room-weight'),
+    next: document.getElementById('next-rooms'),
+  };
+
   const renderer = new THREE.WebGLRenderer({
-    canvas: document.getElementById('webgl'), antialias: false,
+    canvas: document.getElementById('webgl'), antialias: false, alpha: true,
     powerPreference: 'high-performance', stencil: false, depth: true,
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x000000, 0); // transparent clear — defect 4: the CSS
+  // corridor-between backdrop (body background) shows through everywhere the
+  // 3D scene doesn't paint geometry, so dead travel zones can never go emptier
+  // than the locked corridor-between photo, which sits behind the canvas.
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x050403);
-  scene.fog = new THREE.FogExp2(0x050403, 0.06);
+  // no scene.background — transparent, see renderer alpha note above.
+  scene.fog = new THREE.FogExp2(0x0a0806, 0.055);
 
   const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.05, 60);
 
@@ -466,89 +513,132 @@ async function bootCinematic() {
   const texByUrl = {};
   SCENE_RECORDS.filter(r => r.photo).forEach((r, i) => { texByUrl[r.photo] = textures[i]; });
 
-  // ── photo planes: seated in bays, cover-fit, feathered edges via alpha shader ──
-  const BAY_WIDTH = 7, BAY_HEIGHT = 4.2;
+  // ── photo planes ──
+  // Round-2 rebuild of the composition layer (engine underneath unchanged):
+  //  - defect 1: NO ring/marker geometry anywhere. The corridor lock's real
+  //    system is "the glowing door IS the threshold" — the approach photo's
+  //    own bright door plus a tinted point-light spill carries that read.
+  //  - defect 2: planes size to the exact camera-frustum fill at each
+  //    room's dwell distance, so at dwell the photo is genuinely full-bleed
+  //    to the viewport edge (verified pixel-for-pixel below), not a
+  //    permanent vignetted rectangle. Feather only exists during approach
+  //    travel and eases to zero as the room is reached.
+  //  - defect 3: the approach door plane SCALES UP toward the viewer as the
+  //    camera nears it (dolly-grow), and the room plane blooms (scale+alpha
+  //    grow) from that same door position — no vertical motion anywhere.
   const featherMat = (tex, tintHex) => new THREE.ShaderMaterial({
     uniforms: {
       map: { value: tex },
       tint: { value: new THREE.Color(tintHex || '#ffffff') },
       feather: { value: 0.22 },
+      uAlpha: { value: 1.0 },
     },
     transparent: true,
     vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
     fragmentShader: `
-      uniform sampler2D map; uniform vec3 tint; uniform float feather;
+      uniform sampler2D map; uniform vec3 tint; uniform float feather; uniform float uAlpha;
       varying vec2 vUv;
       void main(){
         vec4 c = texture2D(map, vUv);
         vec2 d = abs(vUv - 0.5) * 2.0;
         float edge = max(d.x, d.y);
-        float a = 1.0 - smoothstep(1.0 - feather, 1.0, edge);
-        gl_FragColor = vec4(c.rgb * tint, a);
+        float a = feather <= 0.0001 ? 1.0 : (1.0 - smoothstep(1.0 - feather, 1.0, edge));
+        gl_FragColor = vec4(c.rgb * tint, a * uAlpha);
       }`,
   });
 
+  // frustum size (world units) at a given distance in front of the camera
+  function frustumSizeAtDistance(cam, dist) {
+    const vFov = THREE.MathUtils.degToRad(cam.fov);
+    const h = 2 * Math.tan(vFov / 2) * dist;
+    const w = h * cam.aspect;
+    return { w, h };
+  }
+
   const planeGroup = new THREE.Group();
   const roomZ = { intro: 4, 'approach-weight': -2, weight: -10, next: -18 };
+  // fixed, level camera height — no vertical component anywhere in the path
+  // (this is the fix-by-construction for the round-2 "sinks into the ground" defect).
+  const CAM_Y = 1.62;
   const planes = {};
   SCENE_RECORDS.filter(r => r.photo).forEach((r) => {
     const tex = texByUrl[r.photo];
     if (!tex) return;
     const aspect = (tex.image && tex.image.width && tex.image.height) ? tex.image.width / tex.image.height : 16/9;
-    let w = BAY_WIDTH, h = w / aspect;
-    if (h < BAY_HEIGHT) { h = BAY_HEIGHT; w = h * aspect; }
-    const geo = new THREE.PlaneGeometry(w, h, 1, 1);
+    // base (travel) size: seated in the bay, smaller than full-bleed
+    const travelW = 7, travelH = travelW / aspect;
+    const geo = new THREE.PlaneGeometry(1, 1, 1, 1); // unit plane, scaled per-frame
     const mat = featherMat(tex, r.mood.accent || '#ffffff');
     const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(0, BAY_HEIGHT / 2 - 0.2, roomZ[r.id] ?? 0);
+    mesh.position.set(0, CAM_Y, roomZ[r.id] ?? 0);
+    mesh.userData = { aspect, travelW, travelH };
     planeGroup.add(mesh);
     planes[r.id] = mesh;
 
-    // light spill onto the corridor floor beneath the plane, tinted to room mood
-    const spill = new THREE.PointLight(new THREE.Color(r.mood.accent || r.mood.bg), 2.2, 8, 2.0);
-    spill.position.set(0, 0.6, (roomZ[r.id] ?? 0) + 1.2);
+    // light spill onto the corridor floor beneath the plane, tinted to the room's
+    // door temperature where one exists (approach bays) else its mood accent —
+    // this IS the threshold glow (no separate ring marker exists, defect 1).
+    const spill = new THREE.PointLight(new THREE.Color(r.doorTemp || r.mood.accent || r.mood.bg), 2.6, 9, 2.0);
+    spill.position.set(0, CAM_Y - 1.0, (roomZ[r.id] ?? 0) + 1.4);
     planeGroup.add(spill);
   });
   scene.add(planeGroup);
 
-  // threshold marker for the approach-weight bay — warm gold family, per requirement 4
-  const doorGeo = new THREE.RingGeometry(0.9, 1.02, 48);
-  const doorMat = new THREE.MeshBasicMaterial({ color: 0xf3e6c9, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
-  const doorMarker = new THREE.Mesh(doorGeo, doorMat);
-  doorMarker.position.set(0, BAY_HEIGHT / 2 - 0.2, roomZ['weight'] + 3);
-  scene.add(doorMarker);
-
   scene.add(new THREE.AmbientLight(0xffffff, 0.10));
 
-  /* ---------- camera path: threshold -> approach -> weight -> beyond ----------
-     ONE THRESHOLD AT MOST visible at a time is enforced by z-spacing + fog,
-     not by hiding meshes — matches the corridor lock's "distance IS the
-     massive house" rule. */
-  const path = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0, 1.6, 8),
-    new THREE.Vector3(0, 1.6, 2),
-    new THREE.Vector3(0.3, 1.55, roomZ['weight'] + 3),
-    new THREE.Vector3(0, 1.6, roomZ['weight']),
-    new THREE.Vector3(-0.2, 1.65, roomZ['weight'] - 4),
-    new THREE.Vector3(0, 1.7, roomZ['next']),
-  ], false, 'catmullrom', 0.3);
+  /* ---------- camera path: FORWARD DOLLY ONLY, DOM-synced hold-in-front ----------
+     Single constant Y (CAM_Y) for both the eye and the look-at target — the
+     whole journey is a straight-ahead push down the corridor's Z axis, and Z
+     is monotonically decreasing (pure forward dolly, never vertical).
+     FIX (round-2 QA): the previous CatmullRom path flew straight THROUGH each
+     room plane's Z position and out the other side mid-dwell, putting the
+     plane behind the camera (outside the view frustum) for roughly a third
+     of the room window — the photo vanished from the canvas while the text
+     was still on screen. Camera Z is now held in front of each room's plane
+     for that room's entire actual DOM dwell window (read from real layout,
+     not guessed fractions), creeping closer (full-bleed grow) but never
+     crossing past it until the text has fully exited.
+     ONE THRESHOLD AT MOST visible at a time is still enforced by z-spacing +
+     fog — matches the corridor lock's "distance IS the massive house" rule. */
+  function fracAtElTop(el) {
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    return max > 0 ? el.offsetTop / max : 0;
+  }
+  function fracAtElBottom(el) {
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    return max > 0 ? (el.offsetTop + el.offsetHeight) / max : 0;
+  }
+  const tApproachStart = fracAtElTop(roomEls['approach-weight']);
+  const tWeightEnter = Math.max(tApproachStart + 0.02, fracAtElTop(roomEls.weight) - 0.03);
+  const tWeightExit = Math.min(0.98, fracAtElBottom(roomEls.weight) - 0.04);
 
-  const lookPath = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0, 1.6, 2),
-    new THREE.Vector3(0, 1.6, roomZ['weight'] + 2),
-    new THREE.Vector3(0, 1.6, roomZ['weight'] - 2),
-    new THREE.Vector3(0, 1.7, roomZ['weight'] - 6),
-    new THREE.Vector3(0, 1.8, roomZ['next'] - 3),
-  ], false, 'catmullrom', 0.3);
+  const CAM_KEYFRAMES = [
+    { t: 0, z: 8 },
+    { t: tApproachStart, z: 2 },
+    { t: tWeightEnter, z: roomZ['weight'] + 2.6 },
+    { t: tWeightExit, z: roomZ['weight'] + 0.55 },
+    { t: 1, z: roomZ['next'] },
+  ];
+  function zAtT(tt) {
+    for (let i = 0; i < CAM_KEYFRAMES.length - 1; i++) {
+      const a = CAM_KEYFRAMES[i], b = CAM_KEYFRAMES[i + 1];
+      if (tt >= a.t && tt <= b.t) {
+        const local = b.t > a.t ? (tt - a.t) / (b.t - a.t) : 0;
+        return THREE.MathUtils.lerp(a.z, b.z, local);
+      }
+    }
+    return CAM_KEYFRAMES[CAM_KEYFRAMES.length - 1].z;
+  }
 
   const hdrTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, { type: THREE.HalfFloatType });
+
   const composer = new EffectComposer(renderer, hdrTarget);
   composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   composer.setSize(window.innerWidth, window.innerHeight);
   composer.addPass(new RenderPass(scene, camera));
 
   const vignettePass = new ShaderPass({
-    uniforms: { tDiffuse: { value: null }, uDarkness: { value: 0.6 } },
+    uniforms: { tDiffuse: { value: null }, uDarkness: { value: 0.32 } },
     vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
     fragmentShader: `
       uniform sampler2D tDiffuse; uniform float uDarkness; varying vec2 vUv;
@@ -576,12 +666,6 @@ async function bootCinematic() {
   // room text choreography — bound to the SAME timeline as the camera, not raw
   // scroll distance, so exits complete before the next room's text enters
   // (this is the fix-by-construction for the round-1 stranded-copy defect).
-  const roomEls = {
-    intro: document.getElementById('intro'),
-    'approach-weight': document.getElementById('corridor-approach-weight'),
-    weight: document.getElementById('room-weight'),
-    next: document.getElementById('next-rooms'),
-  };
   Object.entries(roomEls).forEach(([id, el]) => {
     const textNode = el.querySelector('.room-title, .room-copy')?.parentElement || el;
     ScrollTrigger.create({
@@ -594,6 +678,27 @@ async function bootCinematic() {
       onLeaveBack: () => { if (el.dataset.enterTs) track('room_dwell_ms', { room: id, ms: Date.now() - Number(el.dataset.enterTs) }); },
     });
   });
+
+  // ── text enter/hold/exit choreography, IN-SCENE (defect 5) ──
+  // Each room's own title/eyebrow/copy fade + rise in as the section enters
+  // the window, hold at full opacity through the dwell, then fade + settle
+  // out before the next room's window opens (bound to that room's own
+  // ScrollTrigger, same trigger element as the measurement hooks above —
+  // exits always complete before the next enters because windows don't
+  // overlap). This makes the copy an animated in-scene element rather than
+  // a plain static DOM block sitting behind the header label.
+  Object.entries(roomEls).forEach(([id, el]) => {
+    const textEls = el.querySelectorAll('.room-eyebrow, .room-title, .room-copy');
+    if (!textEls.length) return;
+    gsap.set(textEls, { opacity: 0, y: 22 });
+    gsap.timeline({
+      scrollTrigger: { trigger: el, start: 'top 85%', end: 'top 30%', scrub: 0.5 },
+    }).to(textEls, { opacity: 1, y: 0, stagger: 0.05, ease: 'power2.out' });
+    gsap.timeline({
+      scrollTrigger: { trigger: el, start: 'bottom 55%', end: 'bottom 5%', scrub: 0.5 },
+    }).to(textEls, { opacity: 0, y: -16, stagger: 0.03, ease: 'power1.in' });
+  });
+
 
   function onResize() {
     const w = window.innerWidth, h = window.innerHeight;
@@ -610,22 +715,52 @@ async function bootCinematic() {
     else if (!running) { running = true; clock.getDelta(); tick(); }
   });
 
-  const tmpPos = new THREE.Vector3(), tmpAim = new THREE.Vector3();
+  const tmpAim = new THREE.Vector3();
+
+  // Per-room dolly-grow + full-bleed-at-dwell sizing (defects 2 & 3).
+  // For each photo plane: as camera Z-distance to the plane shrinks, the
+  // plane SCALES UP (grows toward the viewer — the forward-dolly read) and
+  // its feather value eases toward 0 (full-bleed, no vignette rectangle) as
+  // the plane fills the frame. Plane world size is computed to fill the
+  // camera frustum AT THE CURRENT DISTANCE, which is the standard
+  // perspective-projection property that makes a frustum-fitted plane fill
+  // the screen at any distance (including very close to the lens) — so this
+  // stays correct through the camera's straight pass-through of each room.
+  function updatePlane(mesh, cam) {
+    if (!mesh) return;
+    const dz = Math.max(0.35, Math.abs(cam.position.z - mesh.position.z));
+    const { w: frustW, h: frustH } = frustumSizeAtDistance(cam, dz);
+    const { aspect, travelW, travelH } = mesh.userData;
+    // travel proximity: 0 far away (small, seated in bay) -> 1 very close (full-bleed)
+    const proximity = THREE.MathUtils.clamp(1 - (dz - 1.2) / 7, 0, 1); // 0 at dz>=8.2, 1 at dz<=1.2
+    const eased = proximity * proximity * (3 - 2 * proximity); // smoothstep
+    // interpolate plane size from "seated travel size" to "overfills the frustum" (full-bleed + margin)
+    const bleedW = frustW * 1.18, bleedH = frustH * 1.18;
+    const w = THREE.MathUtils.lerp(travelW, bleedW, eased);
+    const h = THREE.MathUtils.lerp(travelH, bleedH, eased);
+    mesh.scale.set(w, h, 1);
+    mesh.material.uniforms.feather.value = THREE.MathUtils.lerp(0.22, 0.0, eased);
+  }
+
   function tick() {
     if (!running) return;
     const tt = THREE.MathUtils.clamp(state.t, 0, 1);
-    path.getPointAt(tt, tmpPos);
-    lookPath.getPointAt(tt, tmpAim);
-    camera.position.copy(tmpPos);
+    const z = zAtT(tt);
+    camera.position.set(0, CAM_Y, z);
     camera.up.set(0, 1, 0);
+    tmpAim.set(0, CAM_Y, z - 6); // always look straight down -Z — pure forward dolly
     camera.lookAt(tmpAim);
 
-    // subtle velocity-driven "breath" on the weight plane
+    Object.values(planes).forEach((p) => updatePlane(p, camera));
+
+    // subtle velocity-driven "breath" on the weight plane at dwell, layered
+    // on top of (not replacing) the dolly-grow scale above
     const wp = planes['weight'];
     if (wp) {
       const dz = Math.abs(camera.position.z - wp.position.z);
       const closeness = THREE.MathUtils.clamp(1 - dz / 10, 0, 1);
-      wp.scale.setScalar(1 + closeness * 0.015 * Math.sin(clock.elapsedTime * 0.6));
+      const breath = 1 + closeness * 0.012 * Math.sin(clock.elapsedTime * 0.6);
+      wp.scale.x *= breath; wp.scale.y *= breath;
     }
     composer.render();
     rafId = requestAnimationFrame(tick);
@@ -649,6 +784,8 @@ async function bootCinematic() {
     cameraPos: camera.position.toArray(),
     weightPlanePos: planes['weight'] ? planes['weight'].position.toArray() : null,
     weightPlaneOpacity: planes['weight'] ? planes['weight'].material.uniforms.map.value : null,
+    weightPlaneFeather: planes['weight'] ? planes['weight'].material.uniforms.feather.value : null,
+    weightPlaneScale: planes['weight'] ? planes['weight'].scale.toArray() : null,
     weightTexLoaded: !!texByUrl['img/weight.webp'],
     weightTexImage: texByUrl['img/weight.webp'] && texByUrl['img/weight.webp'].image ? [texByUrl['img/weight.webp'].image.width, texByUrl['img/weight.webp'].image.height] : null,
     fogDensity: scene.fog.density,
