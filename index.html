@@ -319,7 +319,8 @@ import {
   coverFit,
   dollyZAt,
   approachPlaneAlpha,
-  corridorWarmth,
+  approachExposure,
+  doorApproachCurve,
   weightArrivalOpacity,
   textEnvelope,
 } from './motion-core.js';
@@ -569,18 +570,24 @@ async function bootCinematic() {
       tint: { value: new THREE.Color(tintHex || '#ffffff') },
       feather: { value: 0.22 },
       uAlpha: { value: 1.0 },
+      uExposure: { value: 1.0 },
     },
     transparent: true,
     vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
     fragmentShader: `
-      uniform sampler2D map; uniform vec3 tint; uniform float feather; uniform float uAlpha;
+      uniform sampler2D map; uniform vec3 tint; uniform float feather; uniform float uAlpha; uniform float uExposure;
       varying vec2 vUv;
       void main(){
         vec4 c = texture2D(map, vUv);
         vec2 d = abs(vUv - 0.5) * 2.0;
         float edge = max(d.x, d.y);
         float a = feather <= 0.0001 ? 1.0 : (1.0 - smoothstep(1.0 - feather, 1.0, edge));
-        gl_FragColor = vec4(c.rgb * tint, a * uAlpha);
+        // Model 2 (RR-informed): brightness-only exposure lift, same gain on
+        // every channel, so there is no hue shift, ever. This is what "opens
+        // in light" means now: the real photo gets genuinely brighter, not a
+        // colored film laid over the whole frame (that full-frame color grade
+        // was the "weird golden tinge" defect, removed rather than re-tuned).
+        gl_FragColor = vec4(c.rgb * tint * uExposure, a * uAlpha);
       }`,
   });
 
@@ -600,6 +607,14 @@ async function bootCinematic() {
   const CAMERA_START_Z = 8;
   const CAMERA_END_Z = -5.25;
   const planes = {};
+  // Model 2 (RR-informed): the doorway glow is a real positioned object at
+  // the location MEASURED directly from the locked corridor-approach photo
+  // (brightest region centroid: x=0.524, y=0.41 of frame, i.e. just off-
+  // center, upper-middle), not a full-screen tint. Filled in once the
+  // approach plane's real world size is known, right after its scale is set.
+  let doorGlow = null;
+  const DOOR_IMG_X_FRAC = 0.524;
+  const DOOR_IMG_Y_FRAC = 0.41;
   SCENE_RECORDS.filter(r => r.photo).forEach((r) => {
     const tex = texByUrl[r.photo];
     if (!tex) return;
@@ -614,12 +629,29 @@ async function bootCinematic() {
     planeGroup.add(mesh);
     planes[r.id] = mesh;
 
-    // light spill onto the corridor floor beneath the plane, tinted to the room's
-    // door temperature where one exists (approach bays) else its mood accent,
-    // this IS the threshold glow (no separate ring marker exists, defect 1).
-    const spill = new THREE.PointLight(new THREE.Color(r.doorTemp || r.mood.accent || r.mood.bg), 2.6, 9, 2.0);
-    spill.position.set(0, CAM_Y - 1.0, (roomZ[r.id] ?? 0) + 1.4);
-    planeGroup.add(spill);
+    if (r.id === 'approach-weight') {
+      // Model 2: a real additive-blended glow billboard, sized and placed
+      // from the plane's own geometry, so it always lands exactly on the
+      // photographed doorway regardless of viewport or plane scale changes.
+      const glowGeo = new THREE.PlaneGeometry(1, 1, 1, 1);
+      const glowMat = new THREE.ShaderMaterial({
+        uniforms: { uAlpha: { value: 0 }, uColor: { value: new THREE.Color(r.doorTemp || '#ffe9c2') } },
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+        fragmentShader: `
+          uniform float uAlpha; uniform vec3 uColor; varying vec2 vUv;
+          void main(){
+            float d = length(vUv - 0.5) * 2.0;
+            float glow = 1.0 - smoothstep(0.0, 1.0, d);
+            gl_FragColor = vec4(uColor, glow * glow * uAlpha);
+          }`,
+      });
+      doorGlow = new THREE.Mesh(glowGeo, glowMat);
+      doorGlow.renderOrder = 1;
+      planeGroup.add(doorGlow);
+    }
   });
   scene.add(planeGroup);
 
@@ -655,6 +687,17 @@ async function bootCinematic() {
       approach.userData.baseWidth = fit.width;
       approach.userData.baseHeight = fit.height;
       approach.scale.set(fit.width, fit.height, 1);
+
+      // Model 2: place the glow billboard at the MEASURED doorway location
+      // in image space, converted to this plane's actual world size, so it
+      // always sits exactly on the photographed doorway.
+      if (doorGlow) {
+        const localX = (DOOR_IMG_X_FRAC - 0.5) * fit.width;
+        const localY = (0.5 - DOOR_IMG_Y_FRAC) * fit.height;
+        doorGlow.position.set(approach.position.x + localX, approach.position.y + localY, approach.position.z + 0.05);
+        const glowSize = fit.height * 0.34;
+        doorGlow.scale.set(glowSize, glowSize, 1);
+      }
     }
   }
   configurePlaneScales();
@@ -667,22 +710,15 @@ async function bootCinematic() {
   composer.addPass(new RenderPass(scene, camera));
 
   const vignettePass = new ShaderPass({
-    uniforms: { tDiffuse: { value: null }, uDarkness: { value: 0.32 }, uWarmth: { value: 1 } },
+    uniforms: { tDiffuse: { value: null }, uDarkness: { value: 0.32 } },
     vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
     fragmentShader: `
-      uniform sampler2D tDiffuse; uniform float uDarkness; uniform float uWarmth; varying vec2 vUv;
+      uniform sampler2D tDiffuse; uniform float uDarkness; varying vec2 vUv;
       void main(){
         vec4 c = texture2D(tDiffuse, vUv);
         vec2 uv = vUv - 0.5;
         float v = smoothstep(0.85, 0.3, length(uv));
-        vec3 shaded = mix(c.rgb*(1.0-uDarkness), c.rgb, v);
-        // Phase 1 (corridor) real warm grade: a genuine post-process color
-        // grade on the composited 3D frame (not a flat image in front of the
-        // canvas). Lifts exposure and pushes toward warm door-glow tones,
-        // driven by corridorWarmth(t) on the same journey clock as the dolly.
-        vec3 warmLift = shaded * vec3(1.22, 1.06, 0.86) + vec3(0.10, 0.055, 0.015);
-        vec3 graded = mix(shaded, warmLift, uWarmth);
-        gl_FragColor = vec4(graded, c.a);
+        gl_FragColor = vec4(mix(c.rgb*(1.0-uDarkness), c.rgb, v), c.a);
       }`,
   });
   composer.addPass(vignettePass);
@@ -770,7 +806,21 @@ async function bootCinematic() {
     const z = dollyZAt(tt, CAMERA_START_Z, CAMERA_END_Z);
     camera.position.set(0, CAM_Y, z);
     camera.up.set(0, 1, 0);
+
+    // Model 2 (RR-informed): "scroll to the middle top of the doorway, then
+    // into the room" is now a real look-at lift toward the doorway's actual
+    // measured position, not a lighting trick standing in for camera intent.
+    // Camera POSITION stays level (the round-2 fix for the "sinks into the
+    // ground" defect still holds, no vertical component in position), but
+    // where it looks rises toward the doorway through the approach, then
+    // eases back to level as we pass through, matching Misha's described
+    // corridor -> doorway-top -> room arc.
     tmpAim.set(0, CAM_Y, z - 6);
+    const doorPull = doorGlow ? doorApproachCurve(tt) : 0;
+    if (doorGlow && doorPull > 0) {
+      tmpAim.y += (doorGlow.position.y - CAM_Y) * doorPull;
+      tmpAim.x += (doorGlow.position.x - tmpAim.x) * doorPull * 0.5;
+    }
     camera.lookAt(tmpAim);
 
     // Phase 1 (corridor) real forward motion: the approach plane is a fixed
@@ -778,11 +828,13 @@ async function bootCinematic() {
     // continuous dolly above genuinely closes distance on it every frame.
     // Alpha only fades it at the handoff into the dark travel stretch.
     const approach = planes['approach-weight'];
-    if (approach) approach.material.uniforms.uAlpha.value = approachPlaneAlpha(tt);
-
-    // Warm grade lives on the composited render itself now (vignettePass
-    // uWarmth uniform), not a flat DOM image in front of the canvas.
-    vignettePass.uniforms.uWarmth.value = corridorWarmth(tt);
+    if (approach) {
+      approach.material.uniforms.uAlpha.value = approachPlaneAlpha(tt);
+      // Model 2: brightness-only exposure lift on the real photo, no hue
+      // shift, so "opens in light" cannot produce a color-cast defect.
+      approach.material.uniforms.uExposure.value = approachExposure(tt);
+    }
+    if (doorGlow) doorGlow.material.uniforms.uAlpha.value = doorPull * 0.85;
 
     const wp = planes.weight;
     if (wp) {
@@ -828,8 +880,10 @@ async function bootCinematic() {
     weightPlaneAspect: planes['weight'] ? planes['weight'].userData.aspect : null,
     weightPlaneAlpha: planes['weight'] ? planes['weight'].material.uniforms.uAlpha.value : null,
     openingLightOpacity: openingLight ? Number(getComputedStyle(openingLight).opacity) : null,
-    corridorWarmthNow: vignettePass.uniforms.uWarmth.value,
+    approachExposureNow: planes['approach-weight'] ? planes['approach-weight'].material.uniforms.uExposure.value : null,
     approachPlaneAlphaNow: planes['approach-weight'] ? planes['approach-weight'].material.uniforms.uAlpha.value : null,
+    doorGlowAlphaNow: doorGlow ? doorGlow.material.uniforms.uAlpha.value : null,
+    doorGlowPos: doorGlow ? doorGlow.position.toArray() : null,
     introTextOpacity: Number(getComputedStyle(roomEls.intro.querySelector('.room-title')).opacity),
     weightTextOpacity: Number(getComputedStyle(roomEls.weight.querySelector('.room-title')).opacity),
     nextTextOpacity: Number(getComputedStyle(roomEls.next.querySelector('.room-copy')).opacity),

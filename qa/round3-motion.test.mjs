@@ -5,7 +5,8 @@ import {
   coverFit,
   dollyZAt,
   approachPlaneAlpha,
-  corridorWarmth,
+  approachExposure,
+  doorApproachCurve,
   weightArrivalOpacity,
   textEnvelope,
 } from '../motion-core.js';
@@ -64,13 +65,23 @@ test('phase 1 corridor: approach plane is a real object, visible from frame one,
   for (let i = 1; i < samples.length; i++) assert.ok(samples[i] <= samples[i - 1] + 1e-9, 'approach plane must not re-brighten');
 });
 
-test('phase 1 corridor: warmth grade recedes into the earned nocturne before Weight arrival', () => {
-  approx(corridorWarmth(0), 1);
-  approx(corridorWarmth(0.06), 1);
-  approx(corridorWarmth(0.42), 0);
-  approx(weightArrivalOpacity(0.42), 0);
-  const samples = Array.from({ length: 501 }, (_, i) => corridorWarmth(i / 500));
-  for (let i = 1; i < samples.length; i++) assert.ok(samples[i] <= samples[i - 1] + 1e-9, 'warmth must recede monotonically, no re-flash');
+test('phase 1 corridor: warmth is a real exposure lift with no hue shift, receding before Weight arrival', () => {
+  approx(approachExposure(0), 1.7);
+  approx(approachExposure(0.40), 1.0);
+  approx(weightArrivalOpacity(0.40), 0);
+  const samples = Array.from({ length: 501 }, (_, i) => approachExposure(i / 500));
+  for (let i = 1; i < samples.length; i++) assert.ok(samples[i] <= samples[i - 1] + 1e-9, 'exposure must recede monotonically, no re-flash');
+});
+
+test('phase 1 corridor: doorway glow rises then clears before the plane fades, so it lands as a real object not a screen wash', () => {
+  approx(doorApproachCurve(0), 0);
+  approx(doorApproachCurve(0.28), 1);
+  approx(doorApproachCurve(0.48), 0);
+  // must be fully cleared before the approach plane itself starts fading at t=0.40
+  approx(approachPlaneAlpha(0.32), 1);
+  const samples = Array.from({ length: 501 }, (_, i) => doorApproachCurve(i / 500));
+  const maxDelta = Math.max(...samples.slice(1).map((v, i) => Math.abs(v - samples[i])));
+  assert.ok(maxDelta < 0.03, `doorway glow join too abrupt: ${maxDelta}`);
 });
 
 test('Misha-facing resolve card contains no em or en dashes', () => {
