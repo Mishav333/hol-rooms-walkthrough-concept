@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import {
   coverFit,
   dollyZAt,
-  openingLightOpacity,
+  approachPlaneAlpha,
+  corridorWarmth,
   weightArrivalOpacity,
   textEnvelope,
 } from '../motion-core.js';
@@ -41,14 +42,6 @@ test('camera is one monotonic C2 dolly with no keyframe joins', () => {
   assert.ok(Math.abs(velocity.at(-1)) < 1e-6, 'camera should decelerate into dwell');
 });
 
-test('light arc is warm opening, earned dark travel, bright Weight arrival', () => {
-  approx(openingLightOpacity(0), 1);
-  approx(openingLightOpacity(0.08), 1);
-  approx(openingLightOpacity(0.56), 0);
-  approx(weightArrivalOpacity(0.5), 0);
-  approx(weightArrivalOpacity(0.8), 1);
-});
-
 test('text choreography has eased enter, hold, and exit envelopes', () => {
   const track = { enterStart: 0.62, enterEnd: 0.82, exitStart: 0.90, exitEnd: 1.0 };
   approx(textEnvelope(0.60, track), 0);
@@ -58,6 +51,26 @@ test('text choreography has eased enter, hold, and exit envelopes', () => {
   const samples = Array.from({ length: 241 }, (_, i) => textEnvelope(i / 240, track));
   const maxDelta = Math.max(...samples.slice(1).map((v, i) => Math.abs(v - samples[i])));
   assert.ok(maxDelta < 0.08, `text join too abrupt: ${maxDelta}`);
+});
+
+test('phase 1 corridor: approach plane is a real object, visible from frame one, cleared before Weight arrival', () => {
+  approx(approachPlaneAlpha(0), 1);
+  approx(approachPlaneAlpha(0.20), 1);
+  approx(approachPlaneAlpha(0.40), 1);
+  approx(approachPlaneAlpha(0.50), 0);
+  // no overlap with Weight's own arrival light
+  approx(weightArrivalOpacity(0.50), 0);
+  const samples = Array.from({ length: 501 }, (_, i) => approachPlaneAlpha(i / 500));
+  for (let i = 1; i < samples.length; i++) assert.ok(samples[i] <= samples[i - 1] + 1e-9, 'approach plane must not re-brighten');
+});
+
+test('phase 1 corridor: warmth grade recedes into the earned nocturne before Weight arrival', () => {
+  approx(corridorWarmth(0), 1);
+  approx(corridorWarmth(0.06), 1);
+  approx(corridorWarmth(0.42), 0);
+  approx(weightArrivalOpacity(0.42), 0);
+  const samples = Array.from({ length: 501 }, (_, i) => corridorWarmth(i / 500));
+  for (let i = 1; i < samples.length; i++) assert.ok(samples[i] <= samples[i - 1] + 1e-9, 'warmth must recede monotonically, no re-flash');
 });
 
 test('Misha-facing resolve card contains no em or en dashes', () => {

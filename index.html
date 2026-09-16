@@ -107,21 +107,26 @@
   }
   .room-meta.right{ left:auto; right:clamp(1.5rem,5vw,4rem); }
 
-  /* Round 3 opening arc: the first impression is the warm corridor approach.
-     It fades on the same journey clock to reveal the locked corridor-between
-     nocturne, before the bright Weight image arrives. */
+  /* Round 3 opening arc, phase 1 revision: this flat layer is now ONLY a
+     boot placeholder (shown while WebGL/textures initialize, identical to
+     the preloader's job) so there is no black flash. It is retired for good
+     shortly after the first real frame renders. The actual warm opening,
+     and all forward motion, now live in the 3D scene itself: the
+     corridor-approach photo is a real cover-fit plane the camera dollies
+     toward, and warmth is a real fog/light grade on the render. */
   #opening-light{
     position:fixed;
     inset:0;
     z-index:0;
     pointer-events:none;
     opacity:1;
-    will-change:opacity;
+    transition:opacity 0.7s ease;
     background:
       radial-gradient(ellipse 54% 72% at 50% 48%, rgba(255,239,205,0.58) 0%, rgba(244,205,148,0.28) 36%, rgba(244,205,148,0) 78%),
       linear-gradient(rgba(244,207,150,0.30), rgba(52,30,12,0.08)),
       url('img/corridor-approach.webp') center/cover no-repeat;
   }
+  body.hol-scene-ready #opening-light{ opacity:0; }
 
   #intro{
     background:
@@ -313,7 +318,8 @@
 import {
   coverFit,
   dollyZAt,
-  openingLightOpacity,
+  approachPlaneAlpha,
+  corridorWarmth,
   weightArrivalOpacity,
   textEnvelope,
 } from './motion-core.js';
@@ -627,13 +633,29 @@ async function bootCinematic() {
      creating the dwell without stopping and restarting between slides. */
   function configurePlaneScales() {
     const weight = planes.weight;
-    if (!weight) return;
-    const distance = Math.abs(CAMERA_END_Z - weight.position.z);
-    const { w: frustumWidth, h: frustumHeight } = frustumSizeAtDistance(camera, distance);
-    const fit = coverFit(weight.userData.aspect, frustumWidth, frustumHeight, 1.06);
-    weight.userData.baseWidth = fit.width;
-    weight.userData.baseHeight = fit.height;
-    weight.scale.set(fit.width, fit.height, 1);
+    if (weight) {
+      const distance = Math.abs(CAMERA_END_Z - weight.position.z);
+      const { w: frustumWidth, h: frustumHeight } = frustumSizeAtDistance(camera, distance);
+      const fit = coverFit(weight.userData.aspect, frustumWidth, frustumHeight, 1.06);
+      weight.userData.baseWidth = fit.width;
+      weight.userData.baseHeight = fit.height;
+      weight.scale.set(fit.width, fit.height, 1);
+    }
+    // Phase 1 (corridor): cover-fit the approach plane for the CAMERA'S
+    // STARTING distance so it fills the frame from the very first render
+    // (fixes poster-in-void at boot) and grows with real forward parallax as
+    // the camera dollies toward it, rather than resizing itself every frame
+    // (that per-frame resize was the sphere-warp/stretch root cause fixed
+    // earlier for Weight, and the same fixed-geometry rule applies here).
+    const approach = planes['approach-weight'];
+    if (approach) {
+      const distance = Math.abs(CAMERA_START_Z - approach.position.z);
+      const { w: frustumWidth, h: frustumHeight } = frustumSizeAtDistance(camera, distance);
+      const fit = coverFit(approach.userData.aspect, frustumWidth, frustumHeight, 1.08);
+      approach.userData.baseWidth = fit.width;
+      approach.userData.baseHeight = fit.height;
+      approach.scale.set(fit.width, fit.height, 1);
+    }
   }
   configurePlaneScales();
 
@@ -645,15 +667,22 @@ async function bootCinematic() {
   composer.addPass(new RenderPass(scene, camera));
 
   const vignettePass = new ShaderPass({
-    uniforms: { tDiffuse: { value: null }, uDarkness: { value: 0.32 } },
+    uniforms: { tDiffuse: { value: null }, uDarkness: { value: 0.32 }, uWarmth: { value: 1 } },
     vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
     fragmentShader: `
-      uniform sampler2D tDiffuse; uniform float uDarkness; varying vec2 vUv;
+      uniform sampler2D tDiffuse; uniform float uDarkness; uniform float uWarmth; varying vec2 vUv;
       void main(){
         vec4 c = texture2D(tDiffuse, vUv);
         vec2 uv = vUv - 0.5;
         float v = smoothstep(0.85, 0.3, length(uv));
-        gl_FragColor = vec4(mix(c.rgb*(1.0-uDarkness), c.rgb, v), c.a);
+        vec3 shaded = mix(c.rgb*(1.0-uDarkness), c.rgb, v);
+        // Phase 1 (corridor) real warm grade: a genuine post-process color
+        // grade on the composited 3D frame (not a flat image in front of the
+        // canvas). Lifts exposure and pushes toward warm door-glow tones,
+        // driven by corridorWarmth(t) on the same journey clock as the dolly.
+        vec3 warmLift = shaded * vec3(1.22, 1.06, 0.86) + vec3(0.10, 0.055, 0.015);
+        vec3 graded = mix(shaded, warmLift, uWarmth);
+        gl_FragColor = vec4(graded, c.a);
       }`,
   });
   composer.addPass(vignettePass);
@@ -744,11 +773,16 @@ async function bootCinematic() {
     tmpAim.set(0, CAM_Y, z - 6);
     camera.lookAt(tmpAim);
 
-    // Warm approach opens the film, then dissolves to the corridor nocturne.
-    openingLight.style.opacity = openingLightOpacity(tt).toFixed(4);
-
+    // Phase 1 (corridor) real forward motion: the approach plane is a fixed
+    // 3D object at roomZ['approach-weight'], not a flat overlay, so the
+    // continuous dolly above genuinely closes distance on it every frame.
+    // Alpha only fades it at the handoff into the dark travel stretch.
     const approach = planes['approach-weight'];
-    if (approach) approach.material.uniforms.uAlpha.value = 0;
+    if (approach) approach.material.uniforms.uAlpha.value = approachPlaneAlpha(tt);
+
+    // Warm grade lives on the composited render itself now (vignettePass
+    // uWarmth uniform), not a flat DOM image in front of the canvas.
+    vignettePass.uniforms.uWarmth.value = corridorWarmth(tt);
 
     const wp = planes.weight;
     if (wp) {
@@ -776,6 +810,13 @@ async function bootCinematic() {
   tick();
   setupWayfinding(() => state.t);
 
+  // Retire the flat boot placeholder once the first real scene frame has
+  // rendered, so the actual first impression is the 3D corridor with the
+  // real point-light warmth, not a static image parked in front of it.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.body.classList.add('hol-scene-ready');
+  }));
+
   // DEBUG HOOK (temporary, for local QA only, not part of the deployed brief)
   window.__hol_debug = () => ({
     stateT: state.t,
@@ -787,6 +828,8 @@ async function bootCinematic() {
     weightPlaneAspect: planes['weight'] ? planes['weight'].userData.aspect : null,
     weightPlaneAlpha: planes['weight'] ? planes['weight'].material.uniforms.uAlpha.value : null,
     openingLightOpacity: openingLight ? Number(getComputedStyle(openingLight).opacity) : null,
+    corridorWarmthNow: vignettePass.uniforms.uWarmth.value,
+    approachPlaneAlphaNow: planes['approach-weight'] ? planes['approach-weight'].material.uniforms.uAlpha.value : null,
     introTextOpacity: Number(getComputedStyle(roomEls.intro.querySelector('.room-title')).opacity),
     weightTextOpacity: Number(getComputedStyle(roomEls.weight.querySelector('.room-title')).opacity),
     nextTextOpacity: Number(getComputedStyle(roomEls.next.querySelector('.room-copy')).opacity),

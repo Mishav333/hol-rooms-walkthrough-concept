@@ -19,8 +19,22 @@ export function dollyZAt(progress, startZ = 8, endZ = -5.25) {
   return startZ + (endZ - startZ) * smootherstep01(progress);
 }
 
-export function openingLightOpacity(progress) {
-  return 1 - rangedSmootherstep(progress, 0.08, 0.56);
+// Phase 1 (corridor): the corridor plane is a real object the camera dollies
+// past, not a screen overlay. It is fully visible from the very first frame
+// (the "generous door glow from frame one" requirement), holds through the
+// main approach, then clears well before Weight's own arrival window
+// (0.56-0.80) and well before the camera would physically reach its Z
+// position, so there is no backface/clip artifact.
+export function approachPlaneAlpha(progress) {
+  return 1 - rangedSmootherstep(progress, 0.40, 0.50);
+}
+
+// Phase 1 (corridor): warmth is now a real grade on the rendered 3D frame
+// (post pass), not a flat image parked in front of the canvas. Full warmth
+// at the very first frame, receding to the earned nocturne by mid-journey,
+// well before Weight's arrival so the two never mix.
+export function corridorWarmth(progress) {
+  return 1 - rangedSmootherstep(progress, 0.06, 0.42);
 }
 
 export function weightArrivalOpacity(progress) {
