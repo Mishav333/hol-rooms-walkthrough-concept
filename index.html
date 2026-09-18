@@ -557,6 +557,16 @@ async function bootCinematic() {
   const texByUrl = {};
   SCENE_RECORDS.filter(r => r.photo).forEach((r, i) => { texByUrl[r.photo] = textures[i]; });
 
+  // Doorway light delta (My Girl, 2026-09-18): a masked additive light-only
+  // overlay in the SAME 1920x1088 master frame space as the locked
+  // corridor-approach photo (approach-r2-concept3-windows.png). Alpha channel
+  // is the intensity map; RGB is the light's own color (cool aperture daylight,
+  // jamb wash, joint-broken floor reflection, thin threshold halation) — all
+  // baked into the asset itself, not synthesized in a shader. Replaces the
+  // Model 2 radial-sprite glow, which read as a screen-space blob rather than
+  // light through an actual door. See rooms-walkthrough/doorway-light-rebuild/.
+  const [doorLightDeltaTex] = await preloadTextures(loader, ['img/door-light-delta-v5.webp']);
+
   // ── photo planes ──
   // Round 3 invariant: every photo plane keeps its source aspect ratio for
   // every rendered frame. Geometry is a unit square, but scale is always
@@ -608,13 +618,30 @@ async function bootCinematic() {
   const CAMERA_END_Z = -5.25;
   const planes = {};
   // Model 2 (RR-informed): the doorway glow is a real positioned object at
-  // the location MEASURED directly from the locked corridor-approach photo
-  // (brightest region centroid: x=0.524, y=0.41 of frame, i.e. just off-
-  // center, upper-middle), not a full-screen tint. Filled in once the
+  // the location MEASURED directly from the locked corridor-approach photo.
+  // CORRECTED 2026-09-18 (My Girl re-measurement of the exact locked master,
+  // approach-r2-concept3-windows.png, sha a307a9df, verified byte-identical
+  // to this runtime derivative): blown aperture spans x 768-1189, y 400-835
+  // of 1920x1088 master space, centroid normalized x=0.4978, y=0.4759 — i.e.
+  // dead-center, not the old x=0.524/y=0.41 upper-middle estimate. That old
+  // estimate was measured against a different (dark-corridor) photo and was
+  // never re-verified against this bright-register master; it is what caused
+  // the t=0.40 look-at drift toward the left pillar gap. Filled in once the
   // approach plane's real world size is known, right after its scale is set.
+  // Doorway light delta (My Girl v5): a real, positioned additive-blend
+  // plane in the SAME master frame space as the approach photo — same UVs,
+  // same geometry, no offset/scale relative to it. Only intensity animates
+  // (see doorApproachCurve wiring below); the asset itself never moves,
+  // matching "light through a fixed door doesn't move."
+  //
+  // Camera aim still needs the door's actual position in world space (the
+  // light PLANE is coincident with the whole photo now, so it can't be used
+  // as the aim anchor itself). doorAimTarget is computed separately from the
+  // measured centroid below, once the plane's real world size is known.
   let doorGlow = null;
-  const DOOR_IMG_X_FRAC = 0.524;
-  const DOOR_IMG_Y_FRAC = 0.41;
+  const doorAimTarget = new THREE.Vector3();
+  const DOOR_IMG_X_FRAC = 0.4978;
+  const DOOR_IMG_Y_FRAC = 0.4759;
   SCENE_RECORDS.filter(r => r.photo).forEach((r) => {
     const tex = texByUrl[r.photo];
     if (!tex) return;
@@ -629,30 +656,31 @@ async function bootCinematic() {
     planeGroup.add(mesh);
     planes[r.id] = mesh;
 
-    if (r.id === 'approach-weight') {
-      // Model 2: a real additive-blended glow billboard, sized and placed
-      // from the plane's own geometry, so it always lands exactly on the
-      // photographed doorway regardless of viewport or plane scale changes.
+    if (r.id === 'approach-weight' && doorLightDeltaTex) {
+      // Coplanar with the approach photo, exact same geometry/scale/UVs —
+      // the delta was authored in that photo's own master pixel space, so
+      // it lines up 1:1 with zero extra transform math.
       const glowGeo = new THREE.PlaneGeometry(1, 1, 1, 1);
       const glowMat = new THREE.ShaderMaterial({
-        uniforms: { uAlpha: { value: 0 }, uColor: { value: new THREE.Color(r.doorTemp || '#ffe9c2') } },
+        uniforms: { map: { value: doorLightDeltaTex }, uIntensity: { value: 0 } },
         transparent: true,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
         fragmentShader: `
-          uniform float uAlpha; uniform vec3 uColor; varying vec2 vUv;
+          uniform sampler2D map; uniform float uIntensity; varying vec2 vUv;
           void main(){
-            float d = length(vUv - 0.5) * 2.0;
-            float glow = 1.0 - smoothstep(0.0, 1.0, d);
-            gl_FragColor = vec4(uColor, glow * glow * uAlpha);
+            vec4 c = texture2D(map, vUv);
+            gl_FragColor = vec4(c.rgb * c.a * uIntensity, c.a * uIntensity);
           }`,
       });
       doorGlow = new THREE.Mesh(glowGeo, glowMat);
+      doorGlow.position.copy(mesh.position);
       doorGlow.renderOrder = 1;
       planeGroup.add(doorGlow);
     }
   });
+
   scene.add(planeGroup);
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.10));
@@ -688,16 +716,21 @@ async function bootCinematic() {
       approach.userData.baseHeight = fit.height;
       approach.scale.set(fit.width, fit.height, 1);
 
-      // Model 2: place the glow billboard at the MEASURED doorway location
-      // in image space, converted to this plane's actual world size, so it
-      // always sits exactly on the photographed doorway.
+      // Doorway light delta: exact same geometry/scale/position as the
+      // approach plane it's authored against — coincident, not offset.
       if (doorGlow) {
-        const localX = (DOOR_IMG_X_FRAC - 0.5) * fit.width;
-        const localY = (0.5 - DOOR_IMG_Y_FRAC) * fit.height;
-        doorGlow.position.set(approach.position.x + localX, approach.position.y + localY, approach.position.z + 0.05);
-        const glowSize = fit.height * 0.34;
-        doorGlow.scale.set(glowSize, glowSize, 1);
+        doorGlow.position.copy(approach.position);
+        doorGlow.position.z += 0.05; // avoid z-fighting with the photo plane
+        doorGlow.scale.copy(approach.scale);
       }
+      // Camera aim anchor: the door's actual measured position, converted
+      // from image-space fraction into this plane's real world size. This
+      // is independent of the light asset's transform (which is coincident
+      // with the whole photo) — it exists purely so the camera's look-at
+      // can lift toward the real door, not the frame center.
+      const aimLocalX = (DOOR_IMG_X_FRAC - 0.5) * fit.width;
+      const aimLocalY = (0.5 - DOOR_IMG_Y_FRAC) * fit.height;
+      doorAimTarget.set(approach.position.x + aimLocalX, approach.position.y + aimLocalY, approach.position.z);
     }
   }
   configurePlaneScales();
@@ -818,8 +851,8 @@ async function bootCinematic() {
     tmpAim.set(0, CAM_Y, z - 6);
     const doorPull = doorGlow ? doorApproachCurve(tt) : 0;
     if (doorGlow && doorPull > 0) {
-      tmpAim.y += (doorGlow.position.y - CAM_Y) * doorPull;
-      tmpAim.x += (doorGlow.position.x - tmpAim.x) * doorPull * 0.5;
+      tmpAim.y += (doorAimTarget.y - CAM_Y) * doorPull;
+      tmpAim.x += (doorAimTarget.x - tmpAim.x) * doorPull * 0.5;
     }
     camera.lookAt(tmpAim);
 
@@ -834,7 +867,7 @@ async function bootCinematic() {
       // shift, so "opens in light" cannot produce a color-cast defect.
       approach.material.uniforms.uExposure.value = approachExposure(tt);
     }
-    if (doorGlow) doorGlow.material.uniforms.uAlpha.value = doorPull * 0.85;
+    if (doorGlow) doorGlow.material.uniforms.uIntensity.value = doorPull;
 
     const wp = planes.weight;
     if (wp) {
@@ -882,8 +915,9 @@ async function bootCinematic() {
     openingLightOpacity: openingLight ? Number(getComputedStyle(openingLight).opacity) : null,
     approachExposureNow: planes['approach-weight'] ? planes['approach-weight'].material.uniforms.uExposure.value : null,
     approachPlaneAlphaNow: planes['approach-weight'] ? planes['approach-weight'].material.uniforms.uAlpha.value : null,
-    doorGlowAlphaNow: doorGlow ? doorGlow.material.uniforms.uAlpha.value : null,
+    doorGlowIntensityNow: doorGlow ? doorGlow.material.uniforms.uIntensity.value : null,
     doorGlowPos: doorGlow ? doorGlow.position.toArray() : null,
+    doorAimTargetNow: doorAimTarget.toArray(),
     introTextOpacity: Number(getComputedStyle(roomEls.intro.querySelector('.room-title')).opacity),
     weightTextOpacity: Number(getComputedStyle(roomEls.weight.querySelector('.room-title')).opacity),
     nextTextOpacity: Number(getComputedStyle(roomEls.next.querySelector('.room-copy')).opacity),

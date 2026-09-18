@@ -40,10 +40,12 @@ export function approachExposure(progress) {
 }
 
 // Phase 1 (corridor), model 2: the "crack of light" is now a real, positioned
-// glow object at the doorway's actual location in the locked photograph
-// (measured directly from the source image: brightest zone centers at
-// roughly x=0.52, y=0.41 of frame, i.e. just off-center, upper-middle), not
-// a screen-wide wash. This single bump curve drives both the glow sprite's
+// glow object at the doorway's actual location in the locked photograph.
+// CORRECTED 2026-09-18: re-measured directly against the exact locked master
+// (approach-r2-concept3-windows.png) at x=0.4978, y=0.4759 of frame — dead
+// center, not the earlier x=0.52/y=0.41 estimate (which was never verified
+// against this specific bright-register master and caused a look-at drift
+// toward the left pillar gap around t=0.40). This single bump curve drives both the glow sprite's
 // opacity and the camera's look-at lift toward that point, so the two stay
 // locked together: rises as the corridor approach begins, peaks just before
 // the threshold, and is fully gone by the time the plane itself has faded
