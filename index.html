@@ -347,6 +347,7 @@ import {
   approachExposure,
   doorApproachCurve,
   doorRevealProgress,
+  doorRevealEasedProgress,
   weightArrivalOpacity,
   textEnvelope,
 } from './motion-core.js';
@@ -653,58 +654,86 @@ async function bootCinematic() {
     return { w, h };
   }
 
-  // Corridor v3, Option A ("through the door"): a single composite shader on
-  // the corridor-between plane itself, blending TWO real locked photos
-  // (between.webp + weight.webp) with a growing, feathered radial mask
-  // centered on the between photo's own doorway aperture (measured directly
-  // off the locked asset's pixel luminance: UV center x=0.485, y=0.42,
-  // matching the bright opening that is already visible in the between
-  // photo). This
-  // replaces the failed picture-in-picture mockup (hard rectangle, floor
-  // mismatch): there is no second plane floating in front of anything here,
-  // just one photo's pixels smoothly giving way to another's through a soft
-  // circular window that starts at the doorway and grows until it covers the
-  // whole frame -- "small at first, matching what's already there optically"
-  // through to "room fills frame, you're through". uAspect keeps the mask
-  // circular on screen (not stretched by the image's own aspect ratio).
-  const doorwayRevealMat = (mapBetween, mapWeight) => new THREE.ShaderMaterial({
+  // Corridor v3, Option A ("through the door"), ROUND 2 REBUILD (My Girl's
+  // independent gate, run 72, defect 3a/3b/3c): the round-1 shader blended
+  // TWO textures (between + weight) using a mask defined in raw photo-UV
+  // space, while the between plane's WORLD SIZE was fixed once at setup
+  // for a single reference distance (CAMERA_START_Z) and never
+  // re-fit as the camera dollied closer -- so the same UV mask radius
+  // covered a rapidly shrinking slice of the actual viewport as the plane
+  // magnified 2.2x-3.5x, and the second texture sample of weight.webp was
+  // rendered at the BETWEEN plane's (wrong, magnified) scale, producing a
+  // soft, oversized double image against the real weight plane arriving
+  // behind it at its own correct scale.
+  //
+  // The fix is a genuine PORTAL CUTOUT, not a second texture sample:
+  // 1. The between plane is now re-cover-fit to the LIVE camera distance
+  //    EVERY FRAME (see tick(), applyCoverFit(betweenPlane, liveDistance)),
+  //    so its world size always exactly tracks the frustum at whatever
+  //    distance the camera currently is -- eliminating the magnification
+  //    defect at its root, not compensating for it after the fact.
+  // 2. Because cover-fit height/width scale linearly and proportionally
+  //    with frustum size at every distance (same overscan, same image
+  //    aspect), the fraction of the plane's UV space that is actually
+  //    visible on screen is a FIXED CONSTANT independent of distance --
+  //    computed once below as uHalfU/uHalfV, not re-derived per frame.
+  // 3. The shader no longer blends in a second (weight) texture at all.
+  //    Inside the growing radius it goes fully transparent (alpha -> 0,
+  //    depthWrite:false so it never occludes anything behind it) --
+  //    revealing the REAL weight plane, which sits farther from the camera
+  //    at every point in the journey (weight z=-10 vs between z=-7, so
+  //    weight is always 3 world units farther away) and is therefore
+  //    painted first by three.js's back-to-front transparent sort, with
+  //    the between plane's opaque photo painted over it everywhere outside
+  //    the hole. This is exactly the "real portal cutout revealing the
+  //    actual weight plane behind" construction the gate report names as
+  //    equally acceptable to a distance-compensated mask -- and it is what
+  //    fixes the double image (3c) and the soft/magnified dwell (3b) in one
+  //    move, because there is only ever ONE render of weight.webp, at its
+  //    own correct, sharp, arrival-time scale.
+  const doorwayRevealMat = (mapBetween) => new THREE.ShaderMaterial({
     uniforms: {
-      mapA: { value: mapBetween },
-      mapB: { value: mapWeight },
-      uReveal: { value: 0 },
+      map: { value: mapBetween },
       // Measured directly off the locked between.webp (pixel luminance
       // centroid of the doorway aperture, y-window restricted to exclude
       // the floor reflection band below it): x=0.485, y=0.42 of frame.
       uCenter: { value: new THREE.Vector2(0.485, 0.42) },
-      uAspect: { value: 1599 / 906 },
+      // Constant fraction of the plane's UV space visible on screen at ANY
+      // distance (see uHalfU/uHalfV derivation right after this material is
+      // constructed) -- this is what makes a UV-space radius mean a fixed
+      // on-screen size regardless of how close the camera has dollied.
+      uHalfU: { value: 0.5 },
+      uHalfV: { value: 0.5 },
+      uHoleRadius: { value: 0 },
+      uHoleFeather: { value: 0.10 },
       uAlpha: { value: 1.0 },
       feather: { value: 0.22 },
     },
     transparent: true,
+    depthWrite: false,
     vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
     fragmentShader: `
-      uniform sampler2D mapA; uniform sampler2D mapB; uniform float uReveal;
-      uniform vec2 uCenter; uniform float uAspect; uniform float uAlpha; uniform float feather;
+      uniform sampler2D map; uniform vec2 uCenter; uniform float uHalfU; uniform float uHalfV;
+      uniform float uHoleRadius; uniform float uHoleFeather; uniform float uAlpha; uniform float feather;
       varying vec2 vUv;
       void main(){
-        vec4 a = texture2D(mapA, vUv);
-        vec4 b = texture2D(mapB, vUv);
-        // aspect-corrected radial distance so the growing window reads as a
-        // real circular aperture on screen, not an oval stretched by the
-        // source photo's own width/height ratio.
-        float dx = (vUv.x - uCenter.x) * uAspect;
-        float dy = (vUv.y - uCenter.y);
+        vec4 c = texture2D(map, vUv);
+        // Normalized so a distance of 1.0 along either axis alone means
+        // "reached the screen edge on that axis" AT ANY CAMERA DISTANCE --
+        // uHalfU/uHalfV are the constant visible-UV fractions computed once
+        // below, not a per-frame guess.
+        float dx = (vUv.x - uCenter.x) / uHalfU;
+        float dy = (vUv.y - uCenter.y) / uHalfV;
         float dist = length(vec2(dx, dy));
-        float rStart = 0.10; // small peek, roughly the aperture's own visible size
-        float rEnd = 1.65;   // comfortably covers every corner at full reveal
-        float radius = mix(rStart, rEnd, uReveal);
-        float maskFeather = 0.30; // soft edge by construction, never a hard seam
-        float maskB = 1.0 - smoothstep(radius - maskFeather, radius, dist);
-        vec3 rgb = mix(a.rgb, b.rgb, maskB);
+        // 0 inside the growing hole (fully transparent -> real weight plane
+        // shows through, painted first, at ITS OWN correct scale), 1 outside
+        // (opaque corridor photo). Soft feather at the boundary only, never
+        // a hard seam.
+        float holeAlpha = smoothstep(uHoleRadius - uHoleFeather, uHoleRadius, dist);
         vec2 d2 = abs(vUv - 0.5) * 2.0;
         float edge = max(d2.x, d2.y);
         float edgeAlpha = feather <= 0.0001 ? 1.0 : (1.0 - smoothstep(1.0 - feather, 1.0, edge));
-        gl_FragColor = vec4(rgb, edgeAlpha * uAlpha);
+        gl_FragColor = vec4(c.rgb, holeAlpha * edgeAlpha * uAlpha);
       }`,
   });
 
@@ -768,7 +797,7 @@ async function bootCinematic() {
     // shader (between + weight blended through a growing feathered mask)
     // instead of the standard single-photo material -- see doorwayRevealMat.
     const mat = r.id === 'corridor-between'
-      ? doorwayRevealMat(tex, texByUrl['img/weight.webp'] || tex)
+      ? doorwayRevealMat(tex)
       : featherMat(tex, r.mood.accent || '#ffffff');
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(0, CAM_Y, roomZ[r.id] ?? 0);
@@ -1015,17 +1044,75 @@ async function bootCinematic() {
     const betweenPlane = planes['corridor-between'];
     if (betweenPlane) {
       betweenPlane.material.uniforms.uAlpha.value = betweenPlaneAlpha(tt);
-      // Corridor v3, requirement 3 (Option A, "through the door"): grow the
-      // feathered composite mask so the Weight room resolves through the
-      // between photo's own doorway aperture as the push continues, only
-      // reaching full reveal at/after the doorway threshold (t=0.66) -- see
-      // doorRevealProgress() in motion-core.js for the exact timing gate.
-      betweenPlane.material.uniforms.uReveal.value = doorRevealProgress(tt);
+      // Corridor v3, requirement 3 (Option A, "through the door"), ROUND 2
+      // FIX (My Girl's independent gate, run 72, defect 3a): the between
+      // plane's WORLD SIZE is fixed once at setup (see configurePlaneScales,
+      // cover-fit at CAMERA_START_Z) so the ordinary forward-dolly parallax
+      // magnifies it 2.2x-3.5x as the camera closes in -- same rule as
+      // approach/midpoint. Round 1's bug was computing the hole radius in
+      // raw photo-UV units, which don't shrink with that magnification, so
+      // a small UV radius already covered most of the zoomed-in screen. The
+      // fix recomputes the plane's LIVE visible UV half-extent every frame,
+      // from frustumSizeAtDistance at the REAL current camera-to-plane
+      // distance (not the fixed reference distance used only to size the
+      // plane once) divided by the plane's fixed world size -- this is a
+      // pure re-derivation of the existing magnification, not a new one,
+      // and it lets the shader's radius units mean "this fraction of the
+      // actual on-screen frame" at every point in the dolly, matching a
+      // fixed screen-space aperture size instead of a fixed photo-space one.
+      const liveDist = Math.max(0.5, Math.abs(z - betweenPlane.position.z));
+      const { w: liveFrustumW, h: liveFrustumH } = frustumSizeAtDistance(camera, liveDist);
+      const halfU = 0.5 * liveFrustumW / betweenPlane.userData.baseWidth;
+      const halfV = 0.5 * liveFrustumH / betweenPlane.userData.baseHeight;
+      const uni = betweenPlane.material.uniforms;
+      uni.uHalfU.value = halfU;
+      uni.uHalfV.value = halfV;
+      // Farthest on-screen corner from the doorway-aperture center, in these
+      // live-normalized units -- computed analytically every frame (not a
+      // hardcoded guess). The screen itself is centered on UV (0.5, 0.5)
+      // (the camera looks straight at the plane's own center), so the four
+      // screen edges sit at UV 0.5 +/- halfU and 0.5 +/- halfV; since the
+      // aperture center (0.485, 0.42) sits below-left of that screen
+      // center, the farthest corner is always the one at (0.5+halfU,
+      // 0.5+halfV). This means "full reveal" reaches the true farthest
+      // visible pixel of the CURRENT frame, at whatever magnification the
+      // camera is at right now, including the tail of the dwell past the
+      // threshold (t=0.66-0.78) where the plane keeps magnifying further as
+      // it fades out -- the hole keeps pace with it instead of falling
+      // behind a number tuned for one single frame.
+      const center = uni.uCenter.value;
+      const cdx = (0.5 + halfU - center.x) / halfU;
+      const cdy = (0.5 + halfV - center.y) / halfV;
+      const cornerDist = Math.sqrt(cdx * cdx + cdy * cdy);
+      const rStart = 0.15; // small screen-space peek, ~10-15% of frame, matching the doorway's own scale
+      const eased = doorRevealEasedProgress(tt);
+      uni.uHoleRadius.value = rStart + (cornerDist * 1.02 - rStart) * eased;
+      uni.uHoleFeather.value = 0.08; // constant fraction of the live screen frame -- never a wash relative to rStart
     }
 
     const wp = planes.weight;
     if (wp) {
       const arrival = weightArrivalOpacity(tt);
+      // ROUND 2 FIX (My Girl's independent gate, run 72): with the real
+      // portal-cutout construction, the weight plane can now become visible
+      // through the between plane's hole well BEFORE the camera reaches its
+      // own arrival position (CAMERA_END_Z) -- e.g. at t=0.66 the camera is
+      // still ~2.9 world units short of CAMERA_END_Z. The weight plane's
+      // world size was previously fixed ONCE (configurePlaneScales) at the
+      // CAMERA_END_Z reference distance, so at any earlier point in the
+      // dolly it under-fills the current, larger frustum and leaves a
+      // visible rectangular gap around it -- exactly the "hard rectangular
+      // seam" failure mode the card explicitly bans, just relocated from
+      // the mask edge to the plane's own boundary. Fix: re-cover-fit weight
+      // to the LIVE camera distance every frame, same rule already used for
+      // approach/midpoint/between -- this is the SAME construction, not a
+      // new one, just consistently applied to the plane that is now also
+      // reachable early through the portal.
+      const liveWeightDist = Math.max(0.5, Math.abs(z - wp.position.z));
+      const { w: wFrustumW, h: wFrustumH } = frustumSizeAtDistance(camera, liveWeightDist);
+      const wFit = coverFit(wp.userData.aspect, wFrustumW, wFrustumH, 1.06);
+      wp.userData.baseWidth = wFit.width;
+      wp.userData.baseHeight = wFit.height;
       const breath = 1 + arrival * 0.003 * Math.sin(clock.elapsedTime * 0.55);
       wp.scale.set(wp.userData.baseWidth * breath, wp.userData.baseHeight * breath, 1);
       wp.material.uniforms.uAlpha.value = arrival;
@@ -1082,7 +1169,15 @@ async function bootCinematic() {
     // Corridor v3 QA hooks
     midpointPlaneAlphaNow: planes['corridor-midpoint'] ? planes['corridor-midpoint'].material.uniforms.uAlpha.value : null,
     betweenPlaneAlphaNow: planes['corridor-between'] ? planes['corridor-between'].material.uniforms.uAlpha.value : null,
-    doorRevealNow: planes['corridor-between'] ? planes['corridor-between'].material.uniforms.uReveal.value : null,
+    // ROUND 2: replaced the old single uReveal uniform with the real
+    // on-screen hole geometry -- radius/feather already normalized to the
+    // live visible half-extent, plus the raw half-extents themselves, so
+    // QA can verify actual rendered pixel coverage, not a progress uniform.
+    doorHoleRadiusNow: planes['corridor-between'] ? planes['corridor-between'].material.uniforms.uHoleRadius.value : null,
+    doorHoleFeatherNow: planes['corridor-between'] ? planes['corridor-between'].material.uniforms.uHoleFeather.value : null,
+    doorHalfUNow: planes['corridor-between'] ? planes['corridor-between'].material.uniforms.uHalfU.value : null,
+    doorHalfVNow: planes['corridor-between'] ? planes['corridor-between'].material.uniforms.uHalfV.value : null,
+    weightArrivalNow: planes['weight'] ? planes['weight'].material.uniforms.uAlpha.value : null,
   });
 }
 </script>

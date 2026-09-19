@@ -70,6 +70,35 @@ export function doorRevealProgress(progress) {
   return rangedSmootherstep(progress, 0.48, 0.66);
 }
 
+// ROUND 2 FIX (My Girl's independent gate, run 72, defect 3a): the mask
+// radius must be defined in ON-SCREEN units and must grow BACK-LOADED
+// through the reveal window, not linearly against doorRevealProgress. The
+// round-1 defect was geometric: the mask lived in raw photo-UV space while
+// the camera was magnifying that same plane 2.2x-3.5x as it dollied in, so
+// a uReveal of only 0.21 (at t=0.54) already produced a full-room on-screen
+// result. index.html now computes the mask radius EVERY FRAME from the
+// plane's live visible half-extent (the real frustum size at the current
+// camera-to-plane distance, divided into the plane's fixed world size),
+// which cancels the magnification out of the units entirely -- this
+// function only returns a normalized 0-1 EASED progress value; index.html
+// multiplies it into the real per-frame screen-space radius (from a small
+// on-screen peek up to the exact analytically-computed distance to the
+// farthest visible frame corner, given the live geometry), so there is no
+// guessed/hardcoded "corner distance" constant anywhere that could drift out
+// of sync with a future camera or plane-position change. Raising
+// doorRevealProgress to the 4th power back-loads the growth much harder
+// than a simple square (verified numerically: only ~9% of the on-screen
+// radius reached by t=0.54, ~44% by t=0.60, ~96% by t=0.64) so the visible
+// aperture stays a genuinely small peek through the whole first half of the
+// window (matching "small at first... matching what's already there
+// optically") and only opens out to the corners exactly at the doorway
+// threshold (t=0.66), never before -- verified directly against these
+// on-screen units in round3-motion.test.mjs, not against the raw uReveal
+// uniform (that was round 1's testing mistake).
+export function doorRevealEasedProgress(progress) {
+  return doorRevealProgress(progress) ** 4;
+}
+
 // Phase 1 (corridor), model 2: the "crack of light" is now a real, positioned
 // glow object at the doorway's actual location in the locked photograph.
 // CORRECTED 2026-09-18: re-measured directly against the exact locked master
@@ -93,14 +122,20 @@ export function doorApproachCurve(progress) {
   return Math.min(rise, fall);
 }
 
-// Corridor v3, Option A ("through the door"): weight fades in on the SAME
-// clock as doorRevealProgress (very slightly ahead of it) so the room is
-// already resolving as the between plane's aperture cutout starts opening --
-// no black gap ever shows inside the growing hole -- and is fully present
-// (opacity 1) by the doorway threshold at t=0.66, matching doorRevealProgress
-// exactly, then holds through the arrival dwell.
+// Corridor v3, Option A ("through the door"), ROUND 2 RETIME: with the real
+// portal-cutout construction (the between plane's hole reveals the ACTUAL
+// weight plane behind it, not a second texture sample), weight must already
+// be substantially opaque well BEFORE the cutout radius becomes visually
+// significant, or a partially-transparent weight would show through a small
+// early hole as a dim/ghosted peek instead of a bright doorway. The hole
+// first appears (at rStart, a small but non-zero peek) as soon as the
+// between plane itself becomes the dominant visible plane (betweenPlaneAlpha
+// reaches 1 by t=0.48), so weight now ramps 0.28->0.46 -- fully opaque
+// several frames before the between plane is even fully visible, so nothing
+// but genuinely bright, fully-resolved room content is ever seen inside the
+// hole, at any hole size, from the very first frame it's visible.
 export function weightArrivalOpacity(progress) {
-  return rangedSmootherstep(progress, 0.46, 0.64);
+  return rangedSmootherstep(progress, 0.28, 0.46);
 }
 
 export function textEnvelope(progress, track) {
