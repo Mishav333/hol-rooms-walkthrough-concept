@@ -402,7 +402,22 @@ import {
   smootherstep01,
   rangedSmootherstep,
 } from './motion-core.js';
-import { getGPUTier } from '@pmndrs/detect-gpu';
+
+// detect-gpu is loaded via a DYNAMIC import (not a static top-of-file
+// import) specifically so that a CDN failure (ad-blocker, privacy browser,
+// content filter, flaky network, unpkg outage) cannot take down this whole
+// module. A failed STATIC import aborts module instantiation entirely per
+// ES module semantics -- that was the 2026-09-19 regression: neither the
+// cinematic build nor the fixed static fallback mounted, visitors got the
+// raw unstyled HTML skeleton. A failed dynamic import() is just a rejected
+// promise we can catch, so everything below (including the fallback path)
+// still runs even if unpkg never responds.
+let getGPUTier = null;
+try {
+  ({ getGPUTier } = await import('@pmndrs/detect-gpu'));
+} catch (e) {
+  console.warn('[hol-capability] detect-gpu module failed to load (CDN unreachable?), proceeding without GPU tier check', e);
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // House of Longevity, Rooms Walkthrough (representative room: Weight)
@@ -462,14 +477,21 @@ async function capabilityCheck() {
   const gl = getWebGL2Context();
   if (!gl) return { ok: false, reason: 'no-webgl2' };
 
-  try {
-    const gpu = await getGPUTier({ glContext: gl });
-    if (gpu.tier === 0) return { ok: false, reason: `low-gpu-tier:${gpu.type}` };
-  } catch (e) {
-    // Detection failing outright (e.g. benchmark CDN unreachable) is not
-    // evidence the device is weak -- fail OPEN to the cinematic build,
-    // since a real (non-software) WebGL2 context already passed above.
-    console.warn('[hol-capability] gpu tier detection failed, proceeding', e);
+  if (getGPUTier) {
+    try {
+      const gpu = await getGPUTier({ glContext: gl });
+      if (gpu.tier === 0) return { ok: false, reason: `low-gpu-tier:${gpu.type}` };
+    } catch (e) {
+      // Detection failing outright (e.g. benchmark CDN unreachable) is not
+      // evidence the device is weak -- fail OPEN to the cinematic build,
+      // since a real (non-software) WebGL2 context already passed above.
+      console.warn('[hol-capability] gpu tier detection failed, proceeding', e);
+    }
+  } else {
+    // detect-gpu module itself never loaded (see dynamic import above).
+    // Same fail-open behavior: a real non-software WebGL2 context already
+    // passed, so proceed to cinematic without the extra tier signal.
+    console.warn('[hol-capability] gpu tier module unavailable, proceeding without tier check');
   }
 
   return { ok: true };
@@ -500,7 +522,23 @@ if (!cap.ok && !forceCine) {
   setupFallbackCorridorTrack();
   setupWayfinding(null); // wayfinding still works via plain scrollIntoView
 } else {
-  bootCinematic();
+  // Same CDN-resilience principle as the detect-gpu fix above: three.js /
+  // gsap / lenis are ALSO loaded from a third-party CDN (unpkg/esm.sh)
+  // inside bootCinematic(). If any of those fail to load (same real-world
+  // causes: ad-blocker, privacy browser, content filter, CDN outage), the
+  // promise rejects. bootCinematic() was previously fire-and-forget with no
+  // .catch(), so a capable device could get a fully broken page (no canvas,
+  // no fallback track) if the engine's own CDN deps failed mid-boot. Catch
+  // it and degrade to the same static fallback track used for weak devices.
+  bootCinematic().catch((err) => {
+    console.error('[hol-capability] cinematic boot failed (engine CDN dep unreachable?), falling back to static track', err);
+    document.body.classList.remove('cine-active');
+    preloader.classList.add('done');
+    track('fallback_served', { reason: 'cinematic-boot-failed' });
+    document.body.classList.add('fct-active');
+    setupFallbackCorridorTrack();
+    setupWayfinding(null);
+  });
 }
 
 // Fallback path content parity (fix #2, 2026-09-19): drives the same four
