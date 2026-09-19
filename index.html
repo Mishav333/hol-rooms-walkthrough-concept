@@ -107,13 +107,20 @@
   }
   .room-meta.right{ left:auto; right:clamp(1.5rem,5vw,4rem); }
 
-  /* Round 3 opening arc, phase 1 revision: this flat layer is now ONLY a
-     boot placeholder (shown while WebGL/textures initialize, identical to
-     the preloader's job) so there is no black flash. It is retired for good
-     shortly after the first real frame renders. The actual warm opening,
-     and all forward motion, now live in the 3D scene itself: the
-     corridor-approach photo is a real cover-fit plane the camera dollies
-     toward, and warmth is a real fog/light grade on the render. */
+  /* Corridor v3, opening exposure fix (2026-09-19): root cause was a legacy
+     warm-lift overlay (radial 0.58 + linear 0.30/0.08) tuned for the retired
+     DARK corridor-approach shot, still stacked on top of the now-BRIGHT
+     locked asset here AND on the preloader AND on the static fallback below
+     -- all three carried the identical treatment. Measured effect: render
+     mean luminance 132 vs the source asset's own 104 (+27%), yellow cast,
+     intro copy washed out. Fix: cut the overlay down to a light, genuinely
+     subtle warmth (radial 0.10, linear 0.06/0.03) so these boot/fallback
+     layers read close to the photo's OWN natural exposure, not a blown
+     re-lit version of it. This flat layer is ONLY a boot placeholder (shown
+     while WebGL/textures initialize) so there is no black flash; it is
+     retired for good shortly after the first real frame renders. The 3D
+     scene's own approach-plane exposure is likewise flat (motion-core.js
+     approachExposure() == 1.0, no boost) so the same fix holds end to end. */
   #opening-light{
     position:fixed;
     inset:0;
@@ -122,22 +129,33 @@
     opacity:1;
     transition:opacity 0.7s ease;
     background:
-      radial-gradient(ellipse 54% 72% at 50% 48%, rgba(255,239,205,0.58) 0%, rgba(244,205,148,0.28) 36%, rgba(244,205,148,0) 78%),
-      linear-gradient(rgba(244,207,150,0.30), rgba(52,30,12,0.08)),
+      radial-gradient(ellipse 54% 72% at 50% 48%, rgba(255,239,205,0.10) 0%, rgba(244,205,148,0.05) 40%, rgba(244,205,148,0) 78%),
+      linear-gradient(rgba(244,207,150,0.06), rgba(20,14,8,0.03)),
       url('img/corridor-approach.webp') center/cover no-repeat;
   }
   body.hol-scene-ready #opening-light{ opacity:0; }
 
   #intro{
     background:
-      radial-gradient(ellipse 54% 72% at 50% 48%, rgba(255,239,205,0.58) 0%, rgba(244,205,148,0.28) 36%, rgba(244,205,148,0) 78%),
-      linear-gradient(rgba(244,207,150,0.30), rgba(52,30,12,0.08)),
+      radial-gradient(ellipse 54% 72% at 50% 48%, rgba(255,239,205,0.10) 0%, rgba(244,205,148,0.05) 40%, rgba(244,205,148,0) 78%),
+      linear-gradient(rgba(244,207,150,0.06), rgba(20,14,8,0.03)),
       url('img/corridor-approach.webp') center/cover no-repeat;
     align-items:center;
     text-align:center;
   }
   #intro .room-title{ max-width:none; }
-  #intro::before{ background:radial-gradient(ellipse at center, rgba(255,226,179,0.02), rgba(5,4,3,0.22)); }
+  #intro::before{ background:radial-gradient(ellipse at center, rgba(255,226,179,0.02), rgba(5,4,3,0.30)); }
+  /* opening exposure fix, requirement 1: a real scrim plate behind the intro
+     copy block so THE HOUSE / One house. Many rooms. / body copy hold
+     contrast at natural (unboosted) exposure instead of relying on blown
+     highlights for legibility. Sits only behind the text, not full-frame. */
+  #intro .intro-copy{
+    position:relative;
+    display:flex; flex-direction:column; align-items:center;
+    padding:clamp(1.6rem,4vw,2.6rem) clamp(1.8rem,5vw,3.2rem);
+    border-radius:1.4rem;
+    background:radial-gradient(ellipse 92% 100% at 50% 50%, rgba(5,4,3,0.62) 0%, rgba(5,4,3,0.42) 55%, rgba(5,4,3,0) 100%);
+  }
 
   #corridor-approach-weight{ background-image:url('img/corridor-approach.webp'); }
   /* corridor-approach carries only small corner labels, not a text block that
@@ -221,9 +239,12 @@
 
   #preloader{
     position:fixed; inset:0; z-index:9000;
+    /* opening exposure fix: same legacy-lift removal as #opening-light/#intro
+       above -- the preloader shares the identical bright asset and must not
+       re-introduce the +27% overexposed, yellow-cast look on first paint. */
     background:
-      radial-gradient(ellipse 54% 72% at 50% 48%, rgba(255,239,205,0.58) 0%, rgba(244,205,148,0.28) 36%, rgba(244,205,148,0) 78%),
-      linear-gradient(rgba(244,207,150,0.30), rgba(52,30,12,0.08)),
+      radial-gradient(ellipse 54% 72% at 50% 48%, rgba(255,239,205,0.10) 0%, rgba(244,205,148,0.05) 40%, rgba(244,205,148,0) 78%),
+      linear-gradient(rgba(244,207,150,0.06), rgba(20,14,8,0.03)),
       url('img/corridor-approach.webp') center/cover no-repeat;
     color:var(--ink);
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1rem;
@@ -263,14 +284,16 @@
   <button class="way-btn" id="btn-skip">Skip</button>
 </div>
 
-<div class="dev-badge">My Man, representative-room build, Weight only, round 3. Skin, Recovery, and Desire not yet built.</div>
+<div class="dev-badge">My Man, corridor v3: exposure fix, continuous push, Option A room reveal. Skin, Recovery, and Desire not yet built.</div>
 
 <main class="scroll-container">
 
   <section class="room" id="intro" data-room="intro">
-    <span class="room-eyebrow">THE HOUSE</span>
-    <h1 class="room-title">One house.<br>Many rooms.</h1>
-    <p class="room-copy">Inside the House are rooms. Each one holds a different area of care. A member walks into the room they need, at the time in life they need it.</p>
+    <div class="intro-copy">
+      <span class="room-eyebrow">THE HOUSE</span>
+      <h1 class="room-title">One house.<br>Many rooms.</h1>
+      <p class="room-copy">Inside the House are rooms. Each one holds a different area of care. A member walks into the room they need, at the time in life they need it.</p>
+    </div>
   </section>
 
   <section class="room" id="corridor-approach-weight" data-room="approach-weight">
@@ -319,8 +342,11 @@ import {
   coverFit,
   dollyZAt,
   approachPlaneAlpha,
+  midpointPlaneAlpha,
+  betweenPlaneAlpha,
   approachExposure,
   doorApproachCurve,
+  doorRevealProgress,
   weightArrivalOpacity,
   textEnvelope,
 } from './motion-core.js';
@@ -486,7 +512,11 @@ async function bootCinematic() {
   gsap.registerPlugin(ScrollTrigger);
 
   /* ---------- scene records: the data that drives camera + text + mood ----------
-     Rooms 2-4 (skin/recovery/desire) are added here as data only, once built. */
+     Rooms 2-4 (skin/recovery/desire) are added here as data only, once built.
+     Corridor v3: midpoint and between are real photo beats (not their own DOM
+     rooms -- no text/room-counter of their own, same corridor stretch) so the
+     "one continuous push, no scene change until the door" requirement is a
+     real crossfade chain of photo planes, not a cut. */
   const SCENE_RECORDS = [
     {
       id: 'intro',
@@ -501,6 +531,20 @@ async function bootCinematic() {
       photo: 'img/corridor-approach.webp',
       mood: { bg: '#0a0806', deep: '#050403' },
       doorTemp: '#f3e6c9', // Weight/Skin: pale bright morning-white, per corridor lock rule 2
+    },
+    {
+      id: 'corridor-midpoint',
+      selector: null,
+      photo: 'img/corridor-midpoint.webp',
+      mood: { bg: '#0a0806', deep: '#050403', accent: '#e7dcc4' },
+      doorTemp: null,
+    },
+    {
+      id: 'corridor-between',
+      selector: null,
+      photo: 'img/corridor-between.webp',
+      mood: { bg: '#0a0806', deep: '#050403', accent: '#e7dcc4' },
+      doorTemp: null,
     },
     {
       id: 'weight',
@@ -609,8 +653,80 @@ async function bootCinematic() {
     return { w, h };
   }
 
+  // Corridor v3, Option A ("through the door"): a single composite shader on
+  // the corridor-between plane itself, blending TWO real locked photos
+  // (between.webp + weight.webp) with a growing, feathered radial mask
+  // centered on the between photo's own doorway aperture (measured directly
+  // off the locked asset's pixel luminance: UV center x=0.485, y=0.42,
+  // matching the bright opening that is already visible in the between
+  // photo). This
+  // replaces the failed picture-in-picture mockup (hard rectangle, floor
+  // mismatch): there is no second plane floating in front of anything here,
+  // just one photo's pixels smoothly giving way to another's through a soft
+  // circular window that starts at the doorway and grows until it covers the
+  // whole frame -- "small at first, matching what's already there optically"
+  // through to "room fills frame, you're through". uAspect keeps the mask
+  // circular on screen (not stretched by the image's own aspect ratio).
+  const doorwayRevealMat = (mapBetween, mapWeight) => new THREE.ShaderMaterial({
+    uniforms: {
+      mapA: { value: mapBetween },
+      mapB: { value: mapWeight },
+      uReveal: { value: 0 },
+      // Measured directly off the locked between.webp (pixel luminance
+      // centroid of the doorway aperture, y-window restricted to exclude
+      // the floor reflection band below it): x=0.485, y=0.42 of frame.
+      uCenter: { value: new THREE.Vector2(0.485, 0.42) },
+      uAspect: { value: 1599 / 906 },
+      uAlpha: { value: 1.0 },
+      feather: { value: 0.22 },
+    },
+    transparent: true,
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader: `
+      uniform sampler2D mapA; uniform sampler2D mapB; uniform float uReveal;
+      uniform vec2 uCenter; uniform float uAspect; uniform float uAlpha; uniform float feather;
+      varying vec2 vUv;
+      void main(){
+        vec4 a = texture2D(mapA, vUv);
+        vec4 b = texture2D(mapB, vUv);
+        // aspect-corrected radial distance so the growing window reads as a
+        // real circular aperture on screen, not an oval stretched by the
+        // source photo's own width/height ratio.
+        float dx = (vUv.x - uCenter.x) * uAspect;
+        float dy = (vUv.y - uCenter.y);
+        float dist = length(vec2(dx, dy));
+        float rStart = 0.10; // small peek, roughly the aperture's own visible size
+        float rEnd = 1.65;   // comfortably covers every corner at full reveal
+        float radius = mix(rStart, rEnd, uReveal);
+        float maskFeather = 0.30; // soft edge by construction, never a hard seam
+        float maskB = 1.0 - smoothstep(radius - maskFeather, radius, dist);
+        vec3 rgb = mix(a.rgb, b.rgb, maskB);
+        vec2 d2 = abs(vUv - 0.5) * 2.0;
+        float edge = max(d2.x, d2.y);
+        float edgeAlpha = feather <= 0.0001 ? 1.0 : (1.0 - smoothstep(1.0 - feather, 1.0, edge));
+        gl_FragColor = vec4(rgb, edgeAlpha * uAlpha);
+      }`,
+  });
+
+  // Cover-fit a plane at its ACTUAL current camera distance, recomputed every
+  // frame. Used for the two new mid-journey corridor beats (midpoint,
+  // between) so they always exactly fill frame at whatever point in the
+  // continuous dolly they're crossfading through, instead of guessing one
+  // fixed reference distance and risking a visible zoom mismatch or gap.
+  function applyCoverFit(mesh, distance, overscan = 1.08) {
+    if (!mesh) return;
+    const { w: frustumWidth, h: frustumHeight } = frustumSizeAtDistance(camera, Math.max(0.5, distance));
+    const fit = coverFit(mesh.userData.aspect, frustumWidth, frustumHeight, overscan);
+    mesh.userData.baseWidth = fit.width;
+    mesh.userData.baseHeight = fit.height;
+    mesh.scale.set(fit.width, fit.height, 1);
+  }
+
   const planeGroup = new THREE.Group();
-  const roomZ = { intro: 4, 'approach-weight': -2, weight: -10, next: -18 };
+  // Corridor v3: two extra Z stops for the midpoint and between beats,
+  // spread along the same forward track between approach and weight so the
+  // four corridor planes read as one continuous space, not staged jumps.
+  const roomZ = { intro: 4, 'approach-weight': -2, 'corridor-midpoint': -4.5, 'corridor-between': -7, weight: -10, next: -18 };
   // fixed, level camera height, no vertical component anywhere in the path
   // (this is the fix-by-construction for the round-2 "sinks into the ground" defect).
   const CAM_Y = 1.62;
@@ -648,7 +764,12 @@ async function bootCinematic() {
     const aspect = (tex.image && tex.image.width && tex.image.height) ? tex.image.width / tex.image.height : 16/9;
     const travelHeight = 7 / aspect;
     const geo = new THREE.PlaneGeometry(1, 1, 1, 1);
-    const mat = featherMat(tex, r.mood.accent || '#ffffff');
+    // Corridor v3, Option A: the between beat gets the composite reveal
+    // shader (between + weight blended through a growing feathered mask)
+    // instead of the standard single-photo material -- see doorwayRevealMat.
+    const mat = r.id === 'corridor-between'
+      ? doorwayRevealMat(tex, texByUrl['img/weight.webp'] || tex)
+      : featherMat(tex, r.mood.accent || '#ffffff');
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(0, CAM_Y, roomZ[r.id] ?? 0);
     mesh.scale.set(aspect * travelHeight, travelHeight, 1);
@@ -732,6 +853,19 @@ async function bootCinematic() {
       const aimLocalY = (0.5 - DOOR_IMG_Y_FRAC) * fit.height;
       doorAimTarget.set(approach.position.x + aimLocalX, approach.position.y + aimLocalY, approach.position.z);
     }
+    // Corridor v3: midpoint and between are fixed 3D objects too, cover-fit
+    // ONCE at their own distance from the camera's starting position (same
+    // rule as approach above -- real forward parallax as the camera closes
+    // in does the "push", never a per-frame resize), so there is no
+    // poster-in-void moment on any of the four corridor beats.
+    const midpoint = planes['corridor-midpoint'];
+    if (midpoint) {
+      applyCoverFit(midpoint, Math.abs(CAMERA_START_Z - midpoint.position.z), 1.08);
+    }
+    const between = planes['corridor-between'];
+    if (between) {
+      applyCoverFit(between, Math.abs(CAMERA_START_Z - between.position.z), 1.08);
+    }
   }
   configurePlaneScales();
 
@@ -788,8 +922,8 @@ async function bootCinematic() {
   // dolly has begun decelerating, holds through arrival, then makes room for
   // the resolve card without a separate start-stop animation timeline.
   const TEXT_TRACKS = {
-    intro: { enterStart: 0.00, enterEnd: 0.00, exitStart: 0.18, exitEnd: 0.40 },
-    weight: { enterStart: 0.62, enterEnd: 0.82, exitStart: 0.90, exitEnd: 1.00 },
+    intro: { enterStart: 0.00, enterEnd: 0.00, exitStart: 0.14, exitEnd: 0.26 },
+    weight: { enterStart: 0.68, enterEnd: 0.84, exitStart: 0.90, exitEnd: 1.00 },
     next: { enterStart: 0.90, enterEnd: 1.00, exitStart: 2.00, exitEnd: 2.00 },
   };
   const textGroups = {};
@@ -869,6 +1003,26 @@ async function bootCinematic() {
     }
     if (doorGlow) doorGlow.material.uniforms.uIntensity.value = doorPull;
 
+    // Corridor v3, requirement 2 (one continuous push, no scene change until
+    // the door): midpoint and between are real fixed 3D objects, exactly
+    // like approach above, crossfaded on overlapping alpha windows so at
+    // every t at least one corridor plane is fully opaque -- never a black
+    // frame or hard cut before the threshold.
+    const midpointPlane = planes['corridor-midpoint'];
+    if (midpointPlane) {
+      midpointPlane.material.uniforms.uAlpha.value = midpointPlaneAlpha(tt);
+    }
+    const betweenPlane = planes['corridor-between'];
+    if (betweenPlane) {
+      betweenPlane.material.uniforms.uAlpha.value = betweenPlaneAlpha(tt);
+      // Corridor v3, requirement 3 (Option A, "through the door"): grow the
+      // feathered composite mask so the Weight room resolves through the
+      // between photo's own doorway aperture as the push continues, only
+      // reaching full reveal at/after the doorway threshold (t=0.66) -- see
+      // doorRevealProgress() in motion-core.js for the exact timing gate.
+      betweenPlane.material.uniforms.uReveal.value = doorRevealProgress(tt);
+    }
+
     const wp = planes.weight;
     if (wp) {
       const arrival = weightArrivalOpacity(tt);
@@ -925,6 +1079,10 @@ async function bootCinematic() {
     weightTexImage: texByUrl['img/weight.webp'] && texByUrl['img/weight.webp'].image ? [texByUrl['img/weight.webp'].image.width, texByUrl['img/weight.webp'].image.height] : null,
     fogDensity: scene.fog.density,
     sceneChildren: scene.children.length,
+    // Corridor v3 QA hooks
+    midpointPlaneAlphaNow: planes['corridor-midpoint'] ? planes['corridor-midpoint'].material.uniforms.uAlpha.value : null,
+    betweenPlaneAlphaNow: planes['corridor-between'] ? planes['corridor-between'].material.uniforms.uAlpha.value : null,
+    doorRevealNow: planes['corridor-between'] ? planes['corridor-between'].material.uniforms.uReveal.value : null,
   });
 }
 </script>
