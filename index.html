@@ -172,6 +172,28 @@
   #room-weight{ background-image:url('img/weight.webp'); }
   #room-weight .room-eyebrow{ color:#f3e6c9; }
 
+  /* Fallback path content parity (fix #2, 2026-09-19). Hidden by default;
+     JS toggles .fct-active on <body> only when the cinematic layer did NOT
+     mount, so this never competes with the real 3D engine for scroll
+     height or paint. Sticky pin + JS-driven opacity crossfade between the
+     four corridor beats, keyed to scroll progress through the track's own
+     height -- same idea as the cinematic dolly, without WebGL. */
+  .fallback-corridor-track{ display:none; height:300vh; position:relative; }
+  body.fct-active .fallback-corridor-track{ display:block; }
+  .fct-sticky{
+    position:sticky; top:0; height:100vh; overflow:hidden;
+  }
+  .fct-layer{
+    position:absolute; inset:0;
+    background-size:cover; background-position:center;
+    opacity:0; will-change:opacity;
+  }
+  .fct-layer::after{
+    content:"";
+    position:absolute; inset:0;
+    background:linear-gradient(to top, rgba(5,4,3,0.55) 0%, rgba(5,4,3,0.08) 35%, rgba(5,4,3,0.08) 70%, rgba(5,4,3,0.4) 100%);
+  }
+
   /* defect 6: after Weight the preview must resolve cleanly, not end in black
      void, carry the corridor-between photo through as the resolve card so
      there is legible content (not pure black) at the end of the journey too. */
@@ -256,10 +278,16 @@
   .preloader-fill{ height:100%; width:0%; background:var(--ink); transition:width 0.15s ease; }
 
   .dev-badge{
+    display:none;
     position:fixed; bottom:0.8rem; left:0.8rem; z-index:60;
     font-size:0.62rem; letter-spacing:0.06em; text-transform:uppercase;
     color:var(--ink); opacity:0.35; pointer-events:none;
   }
+  /* Internal build-state note: unconditionally in the DOM is a real-visitor
+     defect (confirmed live 2026-09-19). Hidden by default; JS only reveals
+     it under the same ?forcecine=1 dev flag used to bypass the capability
+     gate, so a real visitor on the plain URL never sees it. */
+  .dev-badge.dev-visible{ display:block; }
 
   @media (prefers-reduced-motion: reduce){
     .room{ scroll-snap-align:none; }
@@ -301,6 +329,26 @@
     <span class="room-meta right">approaching</span>
   </section>
 
+  <!-- Fallback path content parity (fix #2, 2026-09-19): a real crossfade
+       chain of the corridor beats for any device that lands on the static
+       path (low-end hardware, prefers-reduced-motion, save-data, crawlers).
+       Previously this jumped straight from the corridor-approach photo to
+       the unrelated weight-room photo -- a jarring 2-image hard cut, and
+       none of the midpoint/between story ever showed on the fallback path.
+       display:none by default; only shown when the cinematic layer did NOT
+       mount (see JS below), so it never adds scroll height or competes with
+       the real 3D engine. No shader/portal engine -- position:sticky +
+       scroll-driven CSS opacity, reusing motion-core's smootherstep so the
+       curve matches the cinematic build's own easing. -->
+  <section class="fallback-corridor-track" id="fallback-corridor-track" aria-hidden="true">
+    <div class="fct-sticky">
+      <div class="fct-layer" data-beat="approach" style="background-image:url('img/corridor-approach.webp')"></div>
+      <div class="fct-layer" data-beat="midpoint" style="background-image:url('img/corridor-midpoint.webp')"></div>
+      <div class="fct-layer" data-beat="between" style="background-image:url('img/corridor-between.webp')"></div>
+      <div class="fct-layer" data-beat="weight" style="background-image:url('img/weight.webp')"></div>
+    </div>
+  </section>
+
   <section class="room" id="room-weight" data-room="weight" data-scene="weight">
     <span class="room-meta">THE WEIGHT ROOM</span>
     <span class="room-meta right" id="weight-counter">02 / 06</span>
@@ -326,7 +374,8 @@
     "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/",
     "gsap": "https://esm.sh/gsap@3.12.5",
     "gsap/ScrollTrigger": "https://esm.sh/gsap@3.12.5/ScrollTrigger",
-    "lenis": "https://unpkg.com/lenis@1.1.0/dist/lenis.mjs"
+    "lenis": "https://unpkg.com/lenis@1.1.0/dist/lenis.mjs",
+    "@pmndrs/detect-gpu": "https://unpkg.com/@pmndrs/detect-gpu@6.0.22/dist/index.mjs"
   }
 }
 </script>
@@ -350,7 +399,10 @@ import {
   doorRevealEasedProgress,
   weightArrivalOpacity,
   textEnvelope,
+  smootherstep01,
+  rangedSmootherstep,
 } from './motion-core.js';
+import { getGPUTier } from '@pmndrs/detect-gpu';
 
 // ─────────────────────────────────────────────────────────────────────────
 // House of Longevity, Rooms Walkthrough (representative room: Weight)
@@ -371,35 +423,59 @@ function track(event, data) {
 }
 
 /* ---------- capability gate ---------- */
-function detectWebGL2() {
+function getWebGL2Context() {
   try {
     const c = document.createElement('canvas');
     const gl = c.getContext('webgl2');
-    if (!gl) return false;
+    if (!gl) return null;
     const dbg = gl.getExtension('WEBGL_debug_renderer_info');
     const r = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : '';
-    return !/SwiftShader|Software|llvmpipe/i.test(r);
-  } catch (e) { return false; }
+    if (/SwiftShader|Software|llvmpipe/i.test(r)) return null; // software renderer, not real GPU
+    return gl;
+  } catch (e) { return null; }
 }
 
-function capabilityCheck() {
+// Real capability tier (pmndrs/detect-gpu, MIT), NOT a touchscreen proxy.
+// The previous gate used `pointer:coarse` as an exclusion: it sent EVERY
+// touchscreen device to the static fallback, including a flagship phone
+// with a capable GPU. That is a documented known-bad proxy -- it tells you
+// "this has a touchscreen", not "this device is weak". detect-gpu instead
+// benchmarks the actual WebGL renderer string against a real measured-
+// framerate dataset and returns a 0-3 tier; only tier 0 (no usable GPU, or
+// hardware on the blocklist) now falls back, regardless of input type. A
+// modern phone (iPhone 13 = A15, tier 3 in the dataset) earns the
+// cinematic build exactly like a capable laptop does.
+async function capabilityCheck() {
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const saveData = navigator.connection && navigator.connection.saveData;
   const slowConn = navigator.connection && /2g/.test(navigator.connection.effectiveType || '');
   const lowMemory = typeof navigator.deviceMemory === 'number' && navigator.deviceMemory <= 4;
-  const coarsePointer = window.matchMedia('(pointer: coarse)').matches; // mobile default: static-first
-  const webgl2 = detectWebGL2();
 
-  if (!webgl2) return { ok: false, reason: 'no-webgl2' };
+  // Legitimate signals, unchanged: these describe real constraints
+  // (accessibility preference, data cost, connection speed, RAM), not a
+  // guess about GPU capability from input type.
   if (prefersReducedMotion) return { ok: false, reason: 'reduced-motion' };
   if (saveData) return { ok: false, reason: 'save-data' };
   if (slowConn) return { ok: false, reason: 'slow-connection' };
   if (lowMemory) return { ok: false, reason: 'low-device-memory' };
-  if (coarsePointer) return { ok: false, reason: 'mobile-static-default' };
+
+  const gl = getWebGL2Context();
+  if (!gl) return { ok: false, reason: 'no-webgl2' };
+
+  try {
+    const gpu = await getGPUTier({ glContext: gl });
+    if (gpu.tier === 0) return { ok: false, reason: `low-gpu-tier:${gpu.type}` };
+  } catch (e) {
+    // Detection failing outright (e.g. benchmark CDN unreachable) is not
+    // evidence the device is weak -- fail OPEN to the cinematic build,
+    // since a real (non-software) WebGL2 context already passed above.
+    console.warn('[hol-capability] gpu tier detection failed, proceeding', e);
+  }
+
   return { ok: true };
 }
 
-const cap = capabilityCheck();
+const cap = await capabilityCheck();
 const preloader = document.getElementById('preloader');
 const openingLight = document.getElementById('opening-light');
 
@@ -409,13 +485,75 @@ const openingLight = document.getElementById('opening-light');
 // the gate above still applies untouched for everyone without the param.
 const forceCine = new URLSearchParams(location.search).get('forcecine') === '1';
 
+// Internal build-state note (fix #3): only ever shown under the same dev
+// flag, never unconditionally in the live DOM. Plain URL = zero dev copy.
+if (forceCine) {
+  const devBadge = document.querySelector('.dev-badge');
+  if (devBadge) devBadge.classList.add('dev-visible');
+}
+
 if (!cap.ok && !forceCine) {
   // FALLBACK PATH: static DOM stands entirely on its own. No canvas mounted.
   preloader.classList.add('done');
   track('fallback_served', { reason: cap.reason });
+  document.body.classList.add('fct-active');
+  setupFallbackCorridorTrack();
   setupWayfinding(null); // wayfinding still works via plain scrollIntoView
 } else {
   bootCinematic();
+}
+
+// Fallback path content parity (fix #2, 2026-09-19): drives the same four
+// corridor beats (approach -> midpoint -> between -> weight room) as the
+// cinematic build, as a plain scroll-position crossfade -- no 3D, no
+// shader, just opacity keyed off how far the track's own sticky section
+// has scrolled through. Beats overlap (same "always at least one opaque
+// plane" invariant as the cinematic engine) so there is never a hard cut
+// or a shared-blank frame between two unrelated photos.
+function setupFallbackCorridorTrack() {
+  const trackEl = document.getElementById('fallback-corridor-track');
+  if (!trackEl) return;
+  const layers = {
+    approach: trackEl.querySelector('[data-beat="approach"]'),
+    midpoint: trackEl.querySelector('[data-beat="midpoint"]'),
+    between: trackEl.querySelector('[data-beat="between"]'),
+    weight: trackEl.querySelector('[data-beat="weight"]'),
+  };
+  // Four even, overlapping windows across the track's own scroll range.
+  const windows = {
+    approach: [0.00, 0.30],
+    midpoint: [0.18, 0.50],
+    between: [0.38, 0.72],
+    weight:  [0.60, 1.00],
+  };
+  function alphaFor([start, end], p) {
+    // A window's rise phase is skipped when it starts at the very
+    // beginning of the track (already fully opaque at p=0, matching how
+    // the corridor-approach section above hands off into this track with
+    // no gap); its fall phase is skipped when it ends at the very end
+    // (stays opaque through to the weight room handoff, no premature fade).
+    const rise = start <= 0
+      ? 1
+      : rangedSmootherstep(p, start, start + (end - start) * 0.25);
+    const fall = end >= 1
+      ? 1
+      : 1 - rangedSmootherstep(p, end - (end - start) * 0.25, end);
+    return Math.min(rise, fall);
+  }
+  function update() {
+    const rect = trackEl.getBoundingClientRect();
+    const total = trackEl.offsetHeight - window.innerHeight;
+    if (total <= 0) return;
+    const scrolled = -rect.top;
+    const p = Math.min(1, Math.max(0, scrolled / total));
+    for (const beat of Object.keys(layers)) {
+      const el = layers[beat];
+      if (el) el.style.opacity = String(alphaFor(windows[beat], p));
+    }
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update);
+  update();
 }
 
 /* ---------- wayfinding (works in both fallback and cinematic modes) ---------- */

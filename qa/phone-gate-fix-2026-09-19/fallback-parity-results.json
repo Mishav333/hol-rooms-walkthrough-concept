@@ -1,0 +1,257 @@
+{
+  "iphone13_plain": {
+    "cineActive": false,
+    "fctActive": true,
+    "canvasOpacity": "0",
+    "devBadgeVisible": false,
+    "hasDevCopy": false,
+    "fallbackMsgs": [
+      "[hol-measure] {event: fallback_served, ts: 1789789090359, reason: no-webgl2}"
+    ],
+    "warnMsgs": [],
+    "fctSamples": [
+      {
+        "frac": 0,
+        "op": {
+          "approach": "1.00",
+          "midpoint": "0.00",
+          "between": "0.00",
+          "weight": "0.00"
+        }
+      },
+      {
+        "frac": 0.15,
+        "op": {
+          "approach": "1.00",
+          "midpoint": "0.00",
+          "between": "0.00",
+          "weight": "0.00"
+        }
+      },
+      {
+        "frac": 0.3,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "1.00",
+          "between": "0.00",
+          "weight": "0.00"
+        }
+      },
+      {
+        "frac": 0.45,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "0.72",
+          "between": "0.96",
+          "weight": "0.00"
+        }
+      },
+      {
+        "frac": 0.6,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "0.00",
+          "between": "1.00",
+          "weight": "0.00"
+        }
+      },
+      {
+        "frac": 0.75,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "0.00",
+          "between": "0.00",
+          "weight": "1.00"
+        }
+      },
+      {
+        "frac": 0.9,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "0.00",
+          "between": "0.00",
+          "weight": "1.00"
+        }
+      },
+      {
+        "frac": 1,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "0.00",
+          "between": "0.00",
+          "weight": "1.00"
+        }
+      }
+    ]
+  },
+  "constrained_lowmemory": {
+    "cineActive": false,
+    "fctActive": true,
+    "canvasOpacity": "0",
+    "devBadgeVisible": false,
+    "hasDevCopy": false,
+    "fallbackMsgs": [
+      "[hol-measure] {event: fallback_served, ts: 1789789093523, reason: low-device-memory}"
+    ],
+    "warnMsgs": [],
+    "fctSamples": [
+      {
+        "frac": 0,
+        "op": {
+          "approach": "1.00",
+          "midpoint": "0.00",
+          "between": "0.00",
+          "weight": "0.00"
+        }
+      },
+      {
+        "frac": 0.15,
+        "op": {
+          "approach": "1.00",
+          "midpoint": "0.00",
+          "between": "0.00",
+          "weight": "0.00"
+        }
+      },
+      {
+        "frac": 0.3,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "1.00",
+          "between": "0.00",
+          "weight": "0.00"
+        }
+      },
+      {
+        "frac": 0.45,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "0.72",
+          "between": "0.96",
+          "weight": "0.00"
+        }
+      },
+      {
+        "frac": 0.6,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "0.00",
+          "between": "1.00",
+          "weight": "0.00"
+        }
+      },
+      {
+        "frac": 0.75,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "0.00",
+          "between": "0.00",
+          "weight": "1.00"
+        }
+      },
+      {
+        "frac": 0.9,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "0.00",
+          "between": "0.00",
+          "weight": "1.00"
+        }
+      },
+      {
+        "frac": 1,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "0.00",
+          "between": "0.00",
+          "weight": "1.00"
+        }
+      }
+    ]
+  },
+  "constrained_nowebgl2": {
+    "cineActive": false,
+    "fctActive": true,
+    "canvasOpacity": "0",
+    "devBadgeVisible": false,
+    "hasDevCopy": false,
+    "fallbackMsgs": [
+      "[hol-measure] {event: fallback_served, ts: 1789789096625, reason: no-webgl2}"
+    ],
+    "warnMsgs": [],
+    "fctSamples": [
+      {
+        "frac": 0,
+        "op": {
+          "approach": "1.00",
+          "midpoint": "0.00",
+          "between": "0.00",
+          "weight": "0.00"
+        }
+      },
+      {
+        "frac": 0.15,
+        "op": {
+          "approach": "1.00",
+          "midpoint": "0.00",
+          "between": "0.00",
+          "weight": "0.00"
+        }
+      },
+      {
+        "frac": 0.3,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "1.00",
+          "between": "0.00",
+          "weight": "0.00"
+        }
+      },
+      {
+        "frac": 0.45,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "0.72",
+          "between": "0.96",
+          "weight": "0.00"
+        }
+      },
+      {
+        "frac": 0.6,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "0.00",
+          "between": "1.00",
+          "weight": "0.00"
+        }
+      },
+      {
+        "frac": 0.75,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "0.00",
+          "between": "0.00",
+          "weight": "1.00"
+        }
+      },
+      {
+        "frac": 0.9,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "0.00",
+          "between": "0.00",
+          "weight": "1.00"
+        }
+      },
+      {
+        "frac": 1,
+        "op": {
+          "approach": "0.00",
+          "midpoint": "0.00",
+          "between": "0.00",
+          "weight": "1.00"
+        }
+      }
+    ]
+  }
+}
