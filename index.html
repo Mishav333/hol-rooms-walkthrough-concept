@@ -412,9 +412,27 @@ import {
 // raw unstyled HTML skeleton. A failed dynamic import() is just a rejected
 // promise we can catch, so everything below (including the fallback path)
 // still runs even if unpkg never responds.
+//
+// A rejected/thrown promise is not the only failure shape, though: the
+// request can also HANG (stall, never error, never resolve) on a flaky
+// connection. That bypasses both success and catch entirely and would leave
+// a real visitor stuck on this line forever. Race the import itself against
+// a deadline (found live, 2026-09-19, by My Girl's independent §3d
+// dependency-failure harness -- confirmed the module-level import and the
+// getGPUTier() call below both needed this same guard, not just one).
+const MODULE_LOAD_TIMEOUT_MS = 4000;
+function withTimeout(promise, ms) {
+  const timeout = new Promise((resolve) => setTimeout(() => resolve('timeout'), ms));
+  return Promise.race([promise.catch(() => 'timeout'), timeout]);
+}
 let getGPUTier = null;
 try {
-  ({ getGPUTier } = await import('@pmndrs/detect-gpu'));
+  const mod = await withTimeout(import('@pmndrs/detect-gpu'), MODULE_LOAD_TIMEOUT_MS);
+  if (mod === 'timeout') {
+    console.warn('[hol-capability] detect-gpu module import timed out after', MODULE_LOAD_TIMEOUT_MS, 'ms, proceeding without GPU tier check');
+  } else {
+    ({ getGPUTier } = mod);
+  }
 } catch (e) {
   console.warn('[hol-capability] detect-gpu module failed to load (CDN unreachable?), proceeding without GPU tier check', e);
 }
@@ -438,6 +456,16 @@ function track(event, data) {
 }
 
 /* ---------- capability gate ---------- */
+// Set once by whichever path (cinematic success, or the boot-timeout/failure
+// fallback) commits first. Needed because Promise.race's LOSER keeps running
+// in the background -- if a stalled CDN request that caused a boot-timeout
+// fallback later resolves anyway, bootCinematic() would resume past its own
+// Promise.all and continue mounting a WebGL scene on top of an already-
+// active, already-committed static fallback DOM. Checked once inside
+// bootCinematic() right after its CDN payload resolves, before any further
+// DOM/scene mutation.
+let pageCommitted = null; // 'cine' | 'fallback'
+
 function getWebGL2Context() {
   try {
     const c = document.createElement('canvas');
@@ -479,8 +507,16 @@ async function capabilityCheck() {
 
   if (getGPUTier) {
     try {
-      const gpu = await getGPUTier({ glContext: gl });
-      if (gpu.tier === 0) return { ok: false, reason: `low-gpu-tier:${gpu.type}` };
+      // Same hang-vs-reject distinction as the module import above: a
+      // rejected/thrown getGPUTier() promise was already handled by catch,
+      // but a promise that never settles at all (e.g. its internal unpkg
+      // benchmark-data fetch stalls) bypasses catch entirely.
+      const gpu = await withTimeout(getGPUTier({ glContext: gl }), MODULE_LOAD_TIMEOUT_MS);
+      if (gpu === 'timeout') {
+        console.warn('[hol-capability] gpu tier detection timed out after', MODULE_LOAD_TIMEOUT_MS, 'ms, proceeding');
+      } else if (gpu.tier === 0) {
+        return { ok: false, reason: `low-gpu-tier:${gpu.type}` };
+      }
     } catch (e) {
       // Detection failing outright (e.g. benchmark CDN unreachable) is not
       // evidence the device is weak -- fail OPEN to the cinematic build,
@@ -516,6 +552,7 @@ if (forceCine) {
 
 if (!cap.ok && !forceCine) {
   // FALLBACK PATH: static DOM stands entirely on its own. No canvas mounted.
+  pageCommitted = 'fallback';
   preloader.classList.add('done');
   track('fallback_served', { reason: cap.reason });
   document.body.classList.add('fct-active');
@@ -530,15 +567,33 @@ if (!cap.ok && !forceCine) {
   // .catch(), so a capable device could get a fully broken page (no canvas,
   // no fallback track) if the engine's own CDN deps failed mid-boot. Catch
   // it and degrade to the same static fallback track used for weak devices.
-  bootCinematic().catch((err) => {
-    console.error('[hol-capability] cinematic boot failed (engine CDN dep unreachable?), falling back to static track', err);
+  //
+  // A stalled (never resolves, never rejects) CDN request is a distinct
+  // failure shape from an outright failure and bypasses .catch() entirely --
+  // the preloader has zero timeout of its own and blocks the page with
+  // pointer-events:none (see #preloader CSS) until .done is added by either
+  // success or this catch, so a hang here strands a capable visitor on the
+  // loading screen indefinitely. Race the whole boot against the same
+  // deadline used for detect-gpu above (found live, 2026-09-19, by My
+  // Girl's independent §3d dependency-failure harness against detect-gpu;
+  // this is the same failure class applied everywhere a CDN dep is loaded,
+  // not just where the harness happened to test it).
+  const BOOT_TIMEOUT_MS = 8000; // longer than MODULE_LOAD_TIMEOUT_MS: three.js+gsap+lenis is more payload than one small module
+  const bootResult = await Promise.race([
+    bootCinematic().then(() => 'ok').catch((err) => ({ failed: err })),
+    new Promise((resolve) => setTimeout(() => resolve('timeout'), BOOT_TIMEOUT_MS)),
+  ]);
+  if (bootResult !== 'ok') {
+    pageCommitted = 'fallback';
+    const reason = bootResult === 'timeout' ? 'cinematic-boot-timeout' : 'cinematic-boot-failed';
+    console.error('[hol-capability] cinematic boot did not complete (' + reason + '), falling back to static track', bootResult && bootResult.failed);
     document.body.classList.remove('cine-active');
     preloader.classList.add('done');
-    track('fallback_served', { reason: 'cinematic-boot-failed' });
+    track('fallback_served', { reason });
     document.body.classList.add('fct-active');
     setupFallbackCorridorTrack();
     setupWayfinding(null);
-  });
+  }
 }
 
 // Fallback path content parity (fix #2, 2026-09-19): drives the same four
@@ -683,6 +738,18 @@ async function bootCinematic() {
     import('gsap/ScrollTrigger'),
     import('lenis'),
   ]);
+
+  if (pageCommitted === 'fallback') {
+    // The race above already timed out and committed to the static track
+    // while this CDN payload was still stalled in the background. It just
+    // arrived late -- do not resume booting a second, conflicting scene on
+    // top of the fallback that's already live and visible.
+    console.warn('[hol-capability] cinematic deps arrived after fallback commit, discarding late boot');
+    document.body.classList.remove('cine-active');
+    return;
+  }
+  pageCommitted = 'cine';
+
   const gsap = gsapMod.default;
   const ScrollTrigger = STMod.default;
   const Lenis = LenisMod.default;
